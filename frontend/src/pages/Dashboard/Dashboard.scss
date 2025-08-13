@@ -1,0 +1,160 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.dashboard {
+  padding: $spacing-lg;
+  margin-left: 250px;
+  
+  @include respond-to(md) {
+    margin-left: 0;
+  }
+  
+  &__grid {
+    @include grid(2, $spacing-lg);
+    max-width: 1200px;
+    margin: 0 auto;
+    
+    @include respond-to(sm) {
+      @include grid(1, $spacing-md);
+    }
+  }
+}
+
+.dashboard-card {
+  @include card-base;
+  @include flex-column;
+  min-height: 200px;
+  
+  &__title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $gray-800;
+    margin-bottom: $spacing-lg;
+    text-align: center;
+  }
+  
+  &__content {
+    flex: 1;
+    @include flex-center;
+  }
+}
+
+// Карточка "NUMBER OF ENTRIES"
+.entries-placeholder {
+  @include flex-center;
+  width: 100px;
+  height: 100px;
+  background-color: $gray-200;
+  border-radius: $border-radius-lg;
+  border: 2px dashed $gray-400;
+  
+  span {
+    font-size: $font-size-xxxl;
+    font-weight: $font-weight-bold;
+    color: $gray-600;
+  }
+}
+
+// Карточка "MOST USED EMOTIONAL REACTIONS"
+.emotions-chart {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  
+  .chart-quadrant {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    border: 2px solid $gray-300;
+    
+    &--top-left {
+      top: 0;
+      left: 0;
+      border-right: none;
+      border-bottom: none;
+    }
+    
+    &--top-right {
+      top: 0;
+      right: 0;
+      border-left: none;
+      border-bottom: none;
+    }
+    
+    &--bottom-left {
+      bottom: 0;
+      left: 0;
+      border-right: none;
+      border-top: none;
+    }
+    
+    &--bottom-right {
+      bottom: 0;
+      right: 0;
+      border-left: none;
+      border-top: none;
+    }
+  }
+  
+  .chart-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 4px;
+    background-color: $gray-600;
+    border-radius: 50%;
+  }
+}
+
+// Карточка "GOALS PROGRESS"
+.goals-progress {
+  @include flex-column;
+  gap: $spacing-md;
+  width: 100%;
+  
+  .progress-bar {
+    width: 100%;
+    height: 12px;
+    background-color: $gray-200;
+    border-radius: $border-radius-sm;
+    overflow: hidden;
+    
+    .progress-fill {
+      height: 100%;
+      background-color: $primary-color;
+      border-radius: $border-radius-sm;
+      transition: width 0.3s ease-in-out;
+    }
+  }
+}
+
+// Карточка "TASK DEADLINES"
+.task-deadlines {
+  @include flex-column;
+  gap: $spacing-sm;
+  width: 100%;
+  
+  .deadline-item {
+    @include flex-between;
+    padding: $spacing-sm;
+    background-color: $gray-100;
+    border-radius: $border-radius-sm;
+    border: 1px solid $gray-200;
+    
+    .deadline-text {
+      font-weight: $font-weight-medium;
+      color: $gray-800;
+    }
+    
+    .deadline-date {
+      font-size: $font-size-sm;
+      color: $gray-600;
+      background-color: $white;
+      padding: $spacing-xs $spacing-sm;
+      border-radius: $border-radius-sm;
+      border: 1px solid $gray-300;
+    }
+  }
+} 

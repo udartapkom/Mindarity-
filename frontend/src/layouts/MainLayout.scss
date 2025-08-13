@@ -1,0 +1,43 @@
+@import '../styles/modules/variables';
+@import '../styles/modules/mixins';
+
+.main-layout {
+  @include flex-row;
+  min-height: 100vh;
+  background: #f8f9fa;
+  
+  .main-content {
+    flex: 1;
+    margin-left: 280px; // Ширина sidebar
+
+    .page-content {
+      padding: $spacing-lg;
+      min-height: calc(100vh - 80px); // Высота минус header
+    }
+  }
+}
+
+// Responsive
+@media (max-width: $breakpoint-lg) {
+  .main-layout {
+    flex-direction: column;
+
+    .main-content {
+      margin-left: 0;
+
+      .page-content {
+        padding: $spacing-md;
+      }
+    }
+    }
+  }
+  
+@media (max-width: $breakpoint-md) {
+  .main-layout {
+    .main-content {
+      .page-content {
+        padding: $spacing-sm;
+      }
+    }
+  }
+} 

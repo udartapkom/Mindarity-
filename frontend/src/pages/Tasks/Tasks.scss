@@ -1,0 +1,162 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.tasks {
+  padding: $spacing-lg;
+  margin-left: 250px;
+  
+  @include respond-to(md) {
+    margin-left: 0;
+  }
+  
+  &__content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  &__header {
+    margin-bottom: $spacing-xl;
+    text-align: center;
+    
+    .tasks__title {
+      font-size: $font-size-xxl;
+      font-weight: $font-weight-bold;
+      color: $gray-900;
+    }
+  }
+  
+  &__goals {
+    margin-bottom: $spacing-xl;
+  }
+  
+  &__add-goal {
+    text-align: center;
+  }
+}
+
+.goals-container {
+  @include flex-center;
+  gap: $spacing-lg;
+  position: relative;
+}
+
+.goals-grid {
+  @include flex-row;
+  gap: $spacing-lg;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: $spacing-md 0;
+  
+  @include respond-to(sm) {
+    gap: $spacing-md;
+  }
+}
+
+.goal-column {
+  @include flex-column;
+  min-width: 250px;
+  background-color: $white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+  border: 1px solid $gray-200;
+  
+  @include respond-to(sm) {
+    min-width: 200px;
+    padding: $spacing-md;
+  }
+}
+
+.goal-header {
+  @include flex-between;
+  margin-bottom: $spacing-lg;
+  padding-bottom: $spacing-md;
+  border-bottom: 1px solid $gray-200;
+  
+  .goal-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $gray-800;
+  }
+  
+  .goal-menu {
+    @include flex-center;
+    width: 32px;
+    height: 32px;
+    background-color: transparent;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+    color: $gray-600;
+    font-size: $font-size-lg;
+    transition: all 0.2s ease-in-out;
+    
+    &:hover {
+      background-color: $gray-100;
+      color: $gray-800;
+    }
+  }
+}
+
+.goal-tasks {
+  @include flex-column;
+  gap: $spacing-sm;
+  
+  .task-item {
+    @include flex-between;
+    padding: $spacing-sm;
+    background-color: $gray-100;
+    border-radius: $border-radius-sm;
+    border: 1px solid $gray-200;
+    
+    .task-text {
+      font-weight: $font-weight-medium;
+      color: $gray-800;
+    }
+    
+    .task-date {
+      font-size: $font-size-sm;
+      color: $gray-600;
+      background-color: $white;
+      padding: $spacing-xs $spacing-sm;
+      border-radius: $border-radius-sm;
+      border: 1px solid $gray-300;
+    }
+  }
+}
+
+.nav-arrow {
+  @include flex-center;
+  width: 40px;
+  height: 40px;
+  background-color: $white;
+  border: 1px solid $gray-300;
+  border-radius: 50%;
+  cursor: pointer;
+  color: $gray-600;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    background-color: $primary-color;
+    color: $white;
+    border-color: $primary-color;
+    transform: scale(1.1);
+  }
+  
+  @include respond-to(sm) {
+    width: 36px;
+    height: 36px;
+    font-size: $font-size-base;
+  }
+}
+
+.add-goal-button {
+  @include button-primary;
+  padding: $spacing-md $spacing-xl;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  border-radius: $border-radius-xl;
+  min-width: 200px;
+} 
