@@ -115,6 +115,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000
       VITE_KEYCLOAK_URL: http://localhost:8080
+      NODE_ENV: development
     ports:
       - "5173:3000"
     depends_on:

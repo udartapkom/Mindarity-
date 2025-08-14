@@ -15,17 +15,23 @@ export interface RegisterRequest {
   lastName?: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  bio?: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string;
+}
+
 export interface AuthResponse {
   access_token: string;
-  user: {
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-  };
+  user: User;
 }
 
 export interface Event {
@@ -79,6 +85,30 @@ export interface Task {
   updatedAt: string;
 }
 
+export interface Session {
+  id: string;
+  device: string;
+  ipAddress: string;
+  lastActivity: string;
+  isCurrent: boolean;
+}
+
+export interface SystemMetrics {
+  cpu: number;
+  memory: number;
+  disk: number;
+  load: number;
+}
+
+export interface SecurityAlert {
+  id: string;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  timestamp: string;
+  resolved: boolean;
+}
+
 // API клиент
 class ApiService {
   private api: AxiosInstance;
@@ -86,7 +116,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: 'http://localhost:3000',
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -220,6 +250,79 @@ class ApiService {
 
   async getGoalsStatistics() {
     const response = await this.api.get('/goals/statistics');
+    return response.data;
+  }
+
+  // Дашборд статистика
+  async getDashboardStats(period: 'week' | 'month' | 'year' = 'week') {
+    const response = await this.api.get('/dashboard/stats', { params: { period } });
+    return response.data;
+  }
+
+  // Пользователи (для админа)
+  async getUsers() {
+    const response = await this.api.get('/users');
+    return response.data;
+  }
+
+  async updateUserStatus(userId: string, isActive: boolean) {
+    const response = await this.api.patch(`/users/${userId}/status`, { isActive });
+    return response.data;
+  }
+
+  async resetUserPassword(userId: string) {
+    const response = await this.api.post(`/users/${userId}/reset-password`);
+    return response.data;
+  }
+
+  async terminateUserSessions(userId: string) {
+    const response = await this.api.post(`/users/${userId}/terminate-sessions`);
+    return response.data;
+  }
+
+  // Системные метрики (для админа)
+  async getSystemMetrics() {
+    const response = await this.api.get('/monitoring/system-metrics');
+    return response.data;
+  }
+
+  async getSecurityAlerts() {
+    const response = await this.api.get('/monitoring/security-alerts');
+    return response.data;
+  }
+
+  async resolveSecurityAlert(alertId: string) {
+    const response = await this.api.patch(`/monitoring/security-alerts/${alertId}/resolve`);
+    return response.data;
+  }
+
+  // Профиль пользователя
+  async updateProfile(profileData: Partial<User>) {
+    const response = await this.api.patch('/users/profile', profileData);
+    return response.data;
+  }
+
+  async changePassword(passwordData: { currentPassword: string; newPassword: string }) {
+    const response = await this.api.post('/users/change-password', passwordData);
+    return response.data;
+  }
+
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await this.api.post('/users/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  }
+
+  async getSessions() {
+    const response = await this.api.get('/users/sessions');
+    return response.data;
+  }
+
+  async terminateSession(sessionId: string) {
+    const response = await this.api.delete(`/users/sessions/${sessionId}`);
     return response.data;
   }
 }

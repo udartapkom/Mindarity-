@@ -6,6 +6,7 @@ export default () => ({
     username: process.env.DATABASE_USERNAME || 'mindarity_user',
     password: process.env.DATABASE_PASSWORD || 'mindarity_password',
     database: process.env.DATABASE_NAME || 'mindarity',
+    url: process.env.DATABASE_URL,
   },
   jwt: {
     secret:
@@ -16,6 +17,7 @@ export default () => ({
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    url: process.env.REDIS_URL,
   },
   elasticsearch: {
     node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
@@ -56,5 +58,11 @@ export default () => ({
       process.env.ELASTICSEARCH_REPLICAS || '0',
       10,
     ),
+  },
+  app: {
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:3000',
+    domain: process.env.DOMAIN || 'localhost',
+    sslEnabled: process.env.SSL_ENABLED === 'true',
   },
 });

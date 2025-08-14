@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import apiService from '../../services/api';
 import './Dashboard.scss';
 
 interface DashboardStats {
@@ -24,37 +25,8 @@ const Dashboard: React.FC = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      // В реальном приложении здесь будут API вызовы
-      // Пока используем моковые данные
-      const mockStats: DashboardStats = {
-        totalEvents: 24,
-        totalGoals: 8,
-        totalTasks: 32,
-        completedTasks: 18,
-        upcomingDeadlines: 5,
-        moodDistribution: {
-          '😊': 8,
-          '😢': 3,
-          '😡': 2,
-          '😴': 4,
-          '🤔': 5,
-          '😍': 2,
-        },
-        goalProgress: [
-          { name: 'Изучить React', progress: 75 },
-          { name: 'Завершить проект', progress: 45 },
-          { name: 'Заняться спортом', progress: 90 },
-          { name: 'Прочитать книгу', progress: 30 },
-        ],
-        recentActivity: [
-          { type: 'event', title: 'Создано новое событие', date: '2 часа назад' },
-          { type: 'task', title: 'Завершена задача "Изучить TypeScript"', date: '5 часов назад' },
-          { type: 'goal', title: 'Обновлен прогресс цели "Изучить React"', date: '1 день назад' },
-          { type: 'event', title: 'Добавлена мысль о будущем', date: '2 дня назад' },
-        ],
-      };
-      
-      setStats(mockStats);
+      const stats = await apiService.getDashboardStats(selectedPeriod);
+      setStats(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {

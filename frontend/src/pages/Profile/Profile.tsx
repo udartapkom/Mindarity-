@@ -1,27 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
+import apiService, { User, Session } from '../../services/api';
 import './Profile.scss';
 
-interface UserProfile {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  bio: string;
-  avatar: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  lastLoginAt: string;
-}
-
-interface Session {
-  id: string;
-  device: string;
-  ipAddress: string;
-  lastActivity: string;
-  isCurrent: boolean;
-}
+type UserProfile = User;
 
 interface ChangePasswordForm {
   currentPassword: string;
@@ -59,24 +41,12 @@ const Profile: React.FC = () => {
 
   const fetchProfile = async () => {
     try {
-      // Временно используем заглушку
-      const mockProfile: UserProfile = {
-        id: '1',
-        firstName: 'Пользователь',
-        lastName: 'Тестовый',
-        email: 'user@example.com',
-        bio: 'Тестовый пользователь',
-        avatar: '',
-        role: 'user',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-      };
-      setProfile(mockProfile);
+      const profileData = await apiService.getProfile();
+      setProfile(profileData);
       setProfileForm({
-        firstName: mockProfile.firstName,
-        lastName: mockProfile.lastName,
-        bio: mockProfile.bio || '',
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        bio: profileData.bio || '',
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -85,17 +55,8 @@ const Profile: React.FC = () => {
 
   const fetchSessions = async () => {
     try {
-      // Временно используем заглушку
-      const mockSessions: Session[] = [
-        {
-          id: '1',
-          device: 'Windows 10',
-          ipAddress: '192.168.1.1',
-          lastActivity: new Date().toISOString(),
-          isCurrent: true,
-        }
-      ];
-      setSessions(mockSessions);
+      const sessions = await apiService.getSessions();
+      setSessions(sessions);
     } catch (error) {
       console.error('Error fetching sessions:', error);
     } finally {
@@ -107,7 +68,7 @@ const Profile: React.FC = () => {
     e.preventDefault();
     
     try {
-      // Временно используем заглушку
+      await apiService.updateProfile(profileForm);
       setProfile(prev => prev ? { ...prev, ...profileForm } : null);
       setEditing(false);
     } catch (error) {
@@ -124,7 +85,10 @@ const Profile: React.FC = () => {
     }
 
     try {
-      // Временно используем заглушку
+      await apiService.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
@@ -142,7 +106,7 @@ const Profile: React.FC = () => {
     if (!selectedFile) return;
 
     try {
-      // Временно используем заглушку
+      await apiService.uploadAvatar(selectedFile);
       setShowAvatarForm(false);
       setSelectedFile(null);
       setAvatarPreview('');

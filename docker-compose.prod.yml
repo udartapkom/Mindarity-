@@ -155,8 +155,9 @@ services:
     image: ${DOCKER_REGISTRY}/mindarity-frontend:${VERSION:-latest}
     container_name: mindarity-frontend-prod
     environment:
-      VITE_API_URL: ${FRONTEND_API_URL}
-      VITE_KEYCLOAK_URL: ${FRONTEND_KEYCLOAK_URL}
+      VITE_API_URL: https://mindarity.ru/api
+      VITE_KEYCLOAK_URL: https://mindarity.ru/auth
+      NODE_ENV: production
     ports:
       - "127.0.0.1:5173:3000"
     depends_on:

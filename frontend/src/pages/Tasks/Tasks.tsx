@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import api from '../../services/api';
-import type { Goal, Task } from '../../services/api';
+import apiService, { Goal, Task } from '../../services/api';
 import './Tasks.scss';
 
 interface CreateGoalForm {
@@ -67,7 +66,7 @@ const Tasks: React.FC = () => {
 
   const fetchGoals = async () => {
     try {
-      const response = await api.getGoals();
+      const response = await apiService.getGoals();
       setGoals(response);
     } catch (error) {
       console.error('Error fetching goals:', error);
@@ -76,9 +75,13 @@ const Tasks: React.FC = () => {
 
   const fetchTasks = async () => {
     try {
-      // Временно используем заглушку, так как метод getTasks требует goalId
-      const mockTasks: Task[] = [];
-      setTasks(mockTasks);
+      // Получаем задачи для всех целей
+      const allTasks: Task[] = [];
+      for (const goal of goals) {
+        const goalTasks = await apiService.getTasks(goal.id);
+        allTasks.push(...goalTasks);
+      }
+      setTasks(allTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -96,7 +99,7 @@ const Tasks: React.FC = () => {
         userId: user?.id,
       };
 
-      await api.createGoal(goalData);
+      await apiService.createGoal(goalData);
       
       setGoalForm({
         title: '',
@@ -123,7 +126,7 @@ const Tasks: React.FC = () => {
         userId: user?.id,
       };
 
-      await api.createTask(taskForm.goalId, taskData);
+      await apiService.createTask(taskForm.goalId, taskData);
       
       setTaskForm({
         title: '',
@@ -151,9 +154,9 @@ const Tasks: React.FC = () => {
 
   const updateTaskStatus = async (taskId: string, status: Task['status']) => {
     try {
-      await api.updateTask(taskId, { status });
+      await apiService.updateTask(taskId, { status });
       if (status === 'done') {
-        await api.updateTask(taskId, { 
+        await apiService.updateTask(taskId, { 
           completedDate: new Date().toISOString() 
         });
       }

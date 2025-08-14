@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
+import apiService, { Event } from '../../services/api';
 import './Events.scss';
-
-interface Event {
-  id: string;
-  title: string;
-  content: string;
-  type: 'event' | 'thought';
-  mood: string;
-  weather?: string;
-  location?: string;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface CreateEventForm {
   title: string;
@@ -51,9 +39,8 @@ const Events: React.FC = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      // Временно используем заглушку
-      const mockEvents: Event[] = [];
-      setEvents(mockEvents);
+      const events = await apiService.getEvents();
+      setEvents(events);
     } catch (error) {
       console.error('Error fetching events:', error);
     } finally {
@@ -68,23 +55,12 @@ const Events: React.FC = () => {
       const eventData = {
         ...formData,
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        userId: user?.id,
+        emotionalReactions: [formData.mood],
+        eventDate: new Date().toISOString(),
+        isPrivate: false,
       };
 
-      // Временно используем заглушку
-      const newEvent: Event = {
-        id: Date.now().toString(),
-        title: eventData.title,
-        content: eventData.content,
-        type: eventData.type,
-        mood: eventData.mood,
-        weather: eventData.weather,
-        location: eventData.location,
-        tags: eventData.tags,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
+      const newEvent = await apiService.createEvent(eventData);
       setEvents(prev => [newEvent, ...prev]);
       
       // Сброс формы и обновление списка

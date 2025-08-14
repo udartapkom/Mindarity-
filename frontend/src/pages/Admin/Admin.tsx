@@ -1,36 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/useAuth';
+import apiService, { User, SystemMetrics, SecurityAlert } from '../../services/api';
 import './Admin.scss';
-
-interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  isActive: boolean;
-  status: string;
-  createdAt: string;
-  lastLoginAt: string;
-  loginAttempts: number;
-  lockedUntil?: string;
-}
-
-interface SystemMetrics {
-  cpu: number;
-  memory: number;
-  disk: number;
-  load: number;
-}
-
-interface SecurityAlert {
-  id: string;
-  type: 'failed_login' | 'system_error' | 'resource_high' | 'component_down';
-  message: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  timestamp: string;
-  resolved: boolean;
-}
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
@@ -68,22 +39,8 @@ const Admin: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      // Временно используем заглушку, так как метод getUsers не существует
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          firstName: 'Admin',
-          lastName: 'User',
-          email: 'admin@example.com',
-          role: 'admin',
-          isActive: true,
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          loginAttempts: 0
-        }
-      ];
-      setUsers(mockUsers);
+      const users = await apiService.getUsers();
+      setUsers(users);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -91,14 +48,8 @@ const Admin: React.FC = () => {
 
   const fetchSystemMetrics = async () => {
     try {
-      // Временно используем заглушку
-      const mockMetrics: SystemMetrics = {
-        cpu: Math.random() * 100,
-        memory: Math.random() * 100,
-        disk: Math.random() * 100,
-        load: Math.random() * 5
-      };
-      setSystemMetrics(mockMetrics);
+      const metrics = await apiService.getSystemMetrics();
+      setSystemMetrics(metrics);
     } catch (error) {
       console.error('Error fetching system metrics:', error);
     }
@@ -106,9 +57,8 @@ const Admin: React.FC = () => {
 
   const fetchSecurityAlerts = async () => {
     try {
-      // Временно используем заглушку
-      const mockAlerts: SecurityAlert[] = [];
-      setSecurityAlerts(mockAlerts);
+      const alerts = await apiService.getSecurityAlerts();
+      setSecurityAlerts(alerts);
     } catch (error) {
       console.error('Error fetching security alerts:', error);
     }
@@ -116,7 +66,7 @@ const Admin: React.FC = () => {
 
   const toggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
-      // Временно используем заглушку
+      await apiService.updateUserStatus(userId, isActive);
       setUsers(prev => prev.map(user => 
         user.id === userId ? { ...user, isActive } : user
       ));
@@ -125,18 +75,18 @@ const Admin: React.FC = () => {
     }
   };
 
-  const resetUserPassword = async () => {
+  const resetUserPassword = async (userId: string) => {
     try {
-      // Временно используем заглушку
+      await apiService.resetUserPassword(userId);
       alert('Пользователю отправлено уведомление о необходимости сброса пароля');
     } catch (error) {
       console.error('Error resetting user password:', error);
     }
   };
 
-  const terminateUserSessions = async () => {
+  const terminateUserSessions = async (userId: string) => {
     try {
-      // Временно используем заглушку
+      await apiService.terminateUserSessions(userId);
       alert('Все сессии пользователя завершены');
     } catch (error) {
       console.error('Error terminating user sessions:', error);
@@ -145,7 +95,7 @@ const Admin: React.FC = () => {
 
   const resolveSecurityAlert = async (alertId: string) => {
     try {
-      // Временно используем заглушку
+      await apiService.resolveSecurityAlert(alertId);
       setSecurityAlerts(prev => prev.map(alert => 
         alert.id === alertId ? { ...alert, resolved: true } : alert
       ));
