@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import apiService, { User, Session } from '../../services/api';
+import apiService from '../../services/api';
+import type { User, Session } from '../../services/api';
 import './Profile.scss';
 
 type UserProfile = User;

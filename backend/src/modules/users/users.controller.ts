@@ -181,11 +181,8 @@ export class UsersController {
   @Post('profile/enable-2fa')
   @ApiOperation({ summary: 'Enable two-factor authentication' })
   @ApiResponse({ status: 200, description: '2FA enabled successfully' })
-  async enableTwoFactor(
-    @Body('secret') secret: string,
-    @Request() req,
-  ): Promise<void> {
-    return this.usersService.enableTwoFactor(req.user.id, secret);
+  async enableTwoFactor(@Request() req): Promise<{ secret: string; qrCode: string }> {
+    return this.usersService.enableTwoFactor(req.user.id);
   }
 
   @Post('profile/disable-2fa')
@@ -193,6 +190,25 @@ export class UsersController {
   @ApiResponse({ status: 200, description: '2FA disabled successfully' })
   async disableTwoFactor(@Request() req): Promise<void> {
     return this.usersService.disableTwoFactor(req.user.id);
+  }
+
+  @Post('profile/verify-2fa')
+  @ApiOperation({ summary: 'Verify two-factor authentication token' })
+  @ApiResponse({ status: 200, description: 'Token verified successfully' })
+  async verifyTwoFactor(
+    @Body('token') token: string,
+    @Request() req,
+  ): Promise<{ isValid: boolean }> {
+    const isValid = await this.usersService.verifyTwoFactorToken(req.user.id, token);
+    return { isValid };
+  }
+
+  @Post('profile/generate-backup-codes')
+  @ApiOperation({ summary: 'Generate backup codes for 2FA' })
+  @ApiResponse({ status: 200, description: 'Backup codes generated successfully' })
+  async generateBackupCodes(@Request() req): Promise<{ backupCodes: string[] }> {
+    const backupCodes = await this.usersService.generateBackupCodes(req.user.id);
+    return { backupCodes };
   }
 
   @Post('forgot-password')

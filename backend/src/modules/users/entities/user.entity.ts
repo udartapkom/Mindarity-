@@ -69,6 +69,9 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   twoFactorSecret: string | null;
 
+  @Column('simple-array', { nullable: true })
+  backupCodes: string[];
+
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date;
 

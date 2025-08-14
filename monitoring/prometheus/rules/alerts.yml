@@ -1,0 +1,170 @@
+groups:
+  - name: system_alerts
+    rules:
+      # CPU загрузка > 85%
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка CPU на {{ $labels.instance }}"
+          description: "CPU загружен на {{ $value }}% на {{ $labels.instance }}"
+
+      # RAM загрузка > 85%
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка RAM на {{ $labels.instance }}"
+          description: "RAM загружен на {{ $value }}% на {{ $labels.instance }}"
+
+      # Диск загрузка > 85%
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка диска на {{ $labels.instance }}"
+          description: "Диск загружен на {{ $value }}% на {{ $labels.instance }}"
+
+      # GPU загрузка > 85% (если доступно)
+      - alert: HighGPUUsage
+        expr: nvidia_gpu_utilization > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка GPU на {{ $labels.instance }}"
+          description: "GPU загружен на {{ $value }}% на {{ $labels.instance }}"
+
+  - name: application_alerts
+    rules:
+      # Backend недоступен
+      - alert: BackendDown
+        expr: up{job="backend-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend API недоступен"
+          description: "Backend API на {{ $labels.instance }} не отвечает"
+
+      # Frontend недоступен
+      - alert: FrontendDown
+        expr: up{job="blackbox-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frontend недоступен"
+          description: "Frontend на {{ $labels.instance }} не отвечает"
+
+      # База данных недоступна
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "База данных недоступна"
+          description: "PostgreSQL на {{ $labels.instance }} не отвечает"
+
+      # Redis недоступен
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis недоступен"
+          description: "Redis на {{ $labels.instance }} не отвечает"
+
+      # Elasticsearch недоступен
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elasticsearch недоступен"
+          description: "Elasticsearch на {{ $labels.instance }} не отвечает"
+
+  - name: security_alerts
+    rules:
+      # Множественные неудачные попытки входа
+      - alert: MultipleFailedLogins
+        expr: rate(failed_login_attempts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Множественные неудачные попытки входа"
+          description: "Обнаружено {{ $value }} неудачных попыток входа в минуту"
+
+      # Высокая нагрузка на API
+      - alert: HighAPILoad
+        expr: rate(http_requests_total{job="backend-api"}[5m]) > 1000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая нагрузка на API"
+          description: "API получает {{ $value }} запросов в минуту"
+
+  - name: performance_alerts
+    rules:
+      # Высокое время ответа API
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="backend-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокое время ответа API"
+          description: "95-й процентиль времени ответа API: {{ $value }}s"
+
+      # Высокое потребление памяти приложением
+      - alert: HighAppMemoryUsage
+        expr: container_memory_usage_bytes{container="backend"} / container_spec_memory_limit_bytes{container="backend"} * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокое потребление памяти приложением"
+          description: "Приложение использует {{ $value }}% доступной памяти"
+
+  - name: infrastructure_alerts
+    rules:
+      # Docker daemon недоступен
+      - alert: DockerDaemonDown
+        expr: up{job="cadvisor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Docker daemon недоступен"
+          description: "cAdvisor не может подключиться к Docker daemon"
+
+      # Traefik недоступен
+      - alert: TraefikDown
+        expr: up{job="traefik"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Traefik недоступен"
+          description: "Traefik reverse proxy не отвечает"
+
+      # SSL сертификат истекает
+      - alert: SSLCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL сертификат истекает"
+          description: "SSL сертификат истечет через {{ $value }} секунд"

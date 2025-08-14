@@ -7,6 +7,10 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { TwoFactorService } from './two-factor.service';
+import { OAuthService } from './oauth.service';
+import { OAuthController } from './oauth.controller';
+import { CaptchaService } from './captcha.service';
 
 @Module({
   imports: [
@@ -21,8 +25,8 @@ import { LocalStrategy } from './strategies/local.strategy';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
-  exports: [AuthService],
+  controllers: [AuthController, OAuthController],
+  providers: [AuthService, JwtStrategy, LocalStrategy, TwoFactorService, OAuthService, CaptchaService],
+  exports: [AuthService, TwoFactorService, OAuthService, CaptchaService],
 })
 export class AuthModule {}

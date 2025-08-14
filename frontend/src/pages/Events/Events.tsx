@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/useAuth';
-import apiService, { Event } from '../../services/api';
+import apiService from '../../services/api';
+import type { Event } from '../../services/api';
 import './Events.scss';
 
 interface CreateEventForm {
@@ -14,7 +14,6 @@ interface CreateEventForm {
 }
 
 const Events: React.FC = () => {
-  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -345,10 +344,11 @@ const Events: React.FC = () => {
                       <div className="event-card__type">
                         {event.type === 'event' ? '📅' : '💭'}
                       </div>
-                      <div className="event-card__mood">{event.mood}</div>
-                      {event.weather && (
-                        <div className="event-card__weather">{event.weather}</div>
-                      )}
+                      <div className="event-card__mood">
+                        {event.emotionalReactions && event.emotionalReactions.length > 0 
+                          ? event.emotionalReactions[0] 
+                          : '😊'}
+                      </div>
                     </div>
                     
                     <div className="event-card__title">{event.title}</div>
@@ -360,7 +360,7 @@ const Events: React.FC = () => {
                       </div>
                     )}
                     
-                    {event.tags.length > 0 && (
+                    {event.tags && event.tags.length > 0 && (
                       <div className="event-card__tags">
                         {event.tags.map(tag => (
                           <span key={tag} className="tag">{tag}</span>

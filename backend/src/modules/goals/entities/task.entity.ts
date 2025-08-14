@@ -63,6 +63,15 @@ export class Task {
   @Column({ default: 0 })
   actualHours: number;
 
+  @Column({ default: 0 })
+  estimatedTime: number; // в минутах
+
+  @Column({ default: 0 })
+  actualTime: number; // в минутах
+
+  @Column('simple-array', { nullable: true })
+  tags: string[];
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 

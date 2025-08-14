@@ -1,5 +1,5 @@
 # Используем официальный Node.js образ
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Устанавливаем зависимости
-RUN npm ci --only=production
+RUN npm ci
 
 # Копируем исходный код
 COPY . .
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Открываем порт
-EXPOSE 3001
+EXPOSE 3000
 
 # Запускаем приложение
 CMD ["npm", "run", "start:prod"] 

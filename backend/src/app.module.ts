@@ -18,6 +18,9 @@ import { SearchModule } from './modules/search/search.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { HealthModule } from './health/health.module';
+import { SeedModule } from './modules/seed/seed.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { BigDataModule } from './modules/bigdata/bigdata.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -95,6 +98,9 @@ import configuration from './config/configuration';
     MonitoringModule,
     NotificationsModule,
     HealthModule,
+    SeedModule,
+    SchedulerModule,
+    BigDataModule,
   ],
   controllers: [AppController],
   providers: [AppService],

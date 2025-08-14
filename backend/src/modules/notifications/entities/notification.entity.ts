@@ -15,6 +15,16 @@ export enum NotificationType {
   ERROR = 'error',
   SUCCESS = 'success',
   SECURITY = 'security',
+  SYSTEM = 'system',
+  USER = 'user',
+  REMINDER = 'reminder',
+}
+
+export enum NotificationPriority {
+  LOW = 'low',
+  NORMAL = 'normal',
+  HIGH = 'high',
+  URGENT = 'urgent',
 }
 
 export enum NotificationStatus {
@@ -48,6 +58,13 @@ export class Notification {
     default: NotificationType.INFO,
   })
   type: NotificationType;
+
+  @Column({
+    type: 'enum',
+    enum: NotificationPriority,
+    default: NotificationPriority.NORMAL,
+  })
+  priority: NotificationPriority;
 
   @Column({
     type: 'enum',
@@ -92,6 +109,12 @@ export class Notification {
 
   @Column({ default: 3 })
   maxRetries: number;
+
+  @Column({ default: false })
+  isSystem: boolean;
+
+  @Column({ default: false })
+  isRead: boolean;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

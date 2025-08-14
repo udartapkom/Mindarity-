@@ -10,6 +10,7 @@ import { User, UserRole, UserStatus } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { TwoFactorService } from '../auth/two-factor.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private twoFactorService: TwoFactorService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -236,11 +238,27 @@ export class UsersService {
     // Implementation depends on token validation
   }
 
-  async enableTwoFactor(id: string, secret: string): Promise<void> {
+  async enableTwoFactor(id: string): Promise<{ secret: string; qrCode: string }> {
+    const user = await this.findOne(id);
+    
+    // Генерируем новый секрет
+    const secret = this.twoFactorService.generateSecret(user.email);
+    
+    // Проверяем валидность секрета
+    if (!this.twoFactorService.validateSecret(secret)) {
+      throw new BadRequestException('Failed to generate valid 2FA secret');
+    }
+    
+    // Генерируем QR код
+    const qrCode = await this.twoFactorService.generateQRCode(secret, user.email);
+    
+    // Сохраняем секрет в базе данных
     await this.usersRepository.update(id, {
       isTwoFactorEnabled: true,
       twoFactorSecret: secret,
     });
+    
+    return { secret, qrCode };
   }
 
   async disableTwoFactor(id: string): Promise<void> {
@@ -248,5 +266,42 @@ export class UsersService {
       isTwoFactorEnabled: false,
       twoFactorSecret: null,
     });
+  }
+
+  async verifyTwoFactorToken(id: string, token: string): Promise<boolean> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      select: ['id', 'twoFactorSecret', 'isTwoFactorEnabled'],
+    });
+
+    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException('2FA is not enabled for this user');
+    }
+
+    return this.twoFactorService.verifyToken(token, user.twoFactorSecret);
+  }
+
+  async generateBackupCodes(id: string): Promise<string[]> {
+    const user = await this.findOne(id);
+    
+    if (!user.isTwoFactorEnabled) {
+      throw new BadRequestException('2FA is not enabled for this user');
+    }
+
+    // Генерируем 10 резервных кодов по 8 символов
+    const backupCodes = Array.from({ length: 10 }, () => 
+      Math.random().toString(36).substring(2, 10).toUpperCase()
+    );
+
+    // Сохраняем хэшированные резервные коды
+    const hashedBackupCodes = await Promise.all(
+      backupCodes.map(code => bcrypt.hash(code, 10))
+    );
+
+    await this.usersRepository.update(id, {
+      backupCodes: hashedBackupCodes,
+    });
+
+    return backupCodes;
   }
 }
