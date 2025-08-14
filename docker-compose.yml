@@ -29,7 +29,7 @@ services:
 
   # Elasticsearch для поиска
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    image: elasticsearch:7.17.0
     container_name: mindarity-elasticsearch
     environment:
       - discovery.type=single-node
@@ -115,6 +115,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000
       VITE_KEYCLOAK_URL: http://localhost:8080
+      NODE_ENV: development
     ports:
       - "5173:3000"
     depends_on:

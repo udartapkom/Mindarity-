@@ -1,0 +1,431 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.events {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+
+    h1 {
+      margin: 0;
+      color: #333;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 30px;
+    height: calc(100% - 100px);
+  }
+
+  &__calendar {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    height: fit-content;
+
+    h3 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 1.2rem;
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 1.2rem;
+    color: #666;
+  }
+
+  &__list {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+    h3 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 1.2rem;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+}
+
+// Календарь
+.calendar {
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    h4 {
+      margin: 0;
+      color: #333;
+      font-size: 1.1rem;
+    }
+  }
+
+  &-nav {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #666;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 6px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #f5f5f5;
+      color: #333;
+    }
+  }
+
+  &-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 10px;
+
+    > div {
+      text-align: center;
+      font-weight: 600;
+      color: #666;
+      font-size: 0.9rem;
+      padding: 8px 0;
+    }
+  }
+
+  &-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  &-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    position: relative;
+    border: 2px solid transparent;
+
+    &:hover {
+      background: #f0f8ff;
+      border-color: #007bff;
+    }
+
+    &.selected {
+      background: #007bff;
+      color: white;
+      border-color: #0056b3;
+    }
+
+    &.today {
+      border-color: #28a745;
+      font-weight: 600;
+    }
+
+    &.empty {
+      cursor: default;
+      background: none;
+
+      &:hover {
+        background: none;
+        border-color: transparent;
+      }
+    }
+
+    .day-number {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .event-indicator {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+
+      .event-count {
+        background: #ff6b6b;
+        color: white;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// Форма события
+.event-form {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.2rem;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .emoji-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .emoji-option {
+      background: none;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        border-color: #007bff;
+        background: #f0f8ff;
+      }
+
+      &.selected {
+        border-color: #007bff;
+        background: #007bff;
+        color: white;
+      }
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 30px;
+  }
+}
+
+// Карточки событий
+.event-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-left: 4px solid #007bff;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  &__type {
+    font-size: 1.5rem;
+  }
+
+  &__mood {
+    font-size: 1.2rem;
+  }
+
+  &__weather {
+    font-size: 1.2rem;
+  }
+
+  &__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+  }
+
+  &__content {
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 15px;
+  }
+
+  &__location {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+
+    .tag {
+      background: #f0f8ff;
+      color: #007bff;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+  }
+
+  &__time {
+    color: #999;
+    font-size: 0.8rem;
+    text-align: right;
+  }
+}
+
+// Кнопки
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &--primary {
+    background: #007bff;
+    color: white;
+
+    &:hover {
+      background: #0056b3;
+    }
+  }
+
+  &--secondary {
+    background: #6c757d;
+    color: white;
+
+    &:hover {
+      background: #545b62;
+    }
+  }
+}
+
+// Сообщение об отсутствии событий
+.no-events {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+
+  p {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .events {
+    padding: 15px;
+
+    &__content {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    &__calendar {
+      order: 2;
+    }
+
+    &__main {
+      order: 1;
+    }
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .events__grid {
+    grid-template-columns: 1fr;
+  }
+} 
