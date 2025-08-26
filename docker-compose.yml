@@ -92,6 +92,31 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
       KEYCLOAK_URL: http://keycloak:8080
+      CORS_ORIGIN: http://localhost:5173,http://frontend:3000,http://nginx:80,https://mindarity.ru
+      # Super Admin Seed Data
+      SUPER_ADMIN_EMAIL: admin@mindarity.ru
+      SUPER_ADMIN_USERNAME: superadmin
+      SUPER_ADMIN_PASSWORD: SuperAdmin123!
+      
+      # Elasticsearch Authentication
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+      
+      # OAuth Configuration
+      OAUTH_GOOGLE_CLIENT_ID: your-google-client-id
+      OAUTH_GOOGLE_CLIENT_SECRET: your-google-client-secret
+      OAUTH_GOOGLE_CALLBACK_URL: http://localhost:3000/auth/google/callback
+      
+      OAUTH_GITHUB_CLIENT_ID: your-github-client-id
+      OAUTH_GITHUB_CLIENT_SECRET: your-github-client-secret
+      OAUTH_GITHUB_CALLBACK_URL: http://localhost:3000/auth/github/callback
+      
+      # CAPTCHA Configuration
+      RECAPTCHA_SITE_KEY: your-recaptcha-site-key
+      RECAPTCHA_SECRET_KEY: your-recaptcha-secret-key
+      
+      HCAPTCHA_SITE_KEY: your-hcaptcha-site-key
+      HCAPTCHA_SECRET_KEY: your-hcaptcha-secret-key
     ports:
       - "3000:3000"
     depends_on:
@@ -112,9 +137,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: mindarity-frontend
+    env_file:
+      - ./frontend/env.docker
     environment:
-      VITE_API_URL: http://localhost:3000
-      VITE_KEYCLOAK_URL: http://localhost:8080
       NODE_ENV: development
     ports:
       - "5173:3000"

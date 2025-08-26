@@ -5,6 +5,8 @@ import {
   Notification,
   NotificationType,
   NotificationPriority,
+  NotificationStatus,
+  NotificationChannel,
 } from './entities/notification.entity';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { User } from '../users/entities/user.entity';
@@ -43,6 +45,8 @@ export class NotificationsService {
       priority,
       metadata,
       isSystem: true,
+      status: NotificationStatus.PENDING,
+      channel: NotificationChannel.IN_APP,
     });
 
     return await this.notificationsRepository.save(notification);
@@ -64,6 +68,8 @@ export class NotificationsService {
       priority,
       metadata,
       isSystem: false,
+      status: NotificationStatus.PENDING,
+      channel: NotificationChannel.IN_APP,
     });
 
     return await this.notificationsRepository.save(notification);
@@ -93,7 +99,7 @@ export class NotificationsService {
     return this.createSystemNotification(
       title,
       message,
-      NotificationType.SYSTEM,
+      NotificationType.INFO,
       usagePercent > 90
         ? NotificationPriority.HIGH
         : NotificationPriority.NORMAL,
@@ -129,7 +135,7 @@ export class NotificationsService {
     return this.createSystemNotification(
       title,
       message,
-      NotificationType.SYSTEM,
+      NotificationType.ERROR,
       NotificationPriority.HIGH,
       { serviceName, error, timestamp: new Date().toISOString() },
     );
@@ -212,9 +218,12 @@ export class NotificationsService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    await this.notificationsRepository.delete({
-      createdAt: { $lt: cutoffDate } as any,
-    });
+    await this.notificationsRepository
+      .createQueryBuilder()
+      .delete()
+      .from(Notification)
+      .where('createdAt < :cutoffDate', { cutoffDate })
+      .execute();
   }
 
   async getNotificationStats(userId: string): Promise<{
@@ -238,8 +247,12 @@ export class NotificationsService {
     const notifications = await this.findAll(userId);
 
     const byType = {
-      [NotificationType.SYSTEM]: 0,
+      [NotificationType.INFO]: 0,
+      [NotificationType.WARNING]: 0,
+      [NotificationType.ERROR]: 0,
+      [NotificationType.SUCCESS]: 0,
       [NotificationType.SECURITY]: 0,
+      [NotificationType.SYSTEM]: 0,
       [NotificationType.USER]: 0,
       [NotificationType.REMINDER]: 0,
     };
@@ -281,6 +294,8 @@ export class NotificationsService {
         priority,
         metadata,
         isSystem: false,
+        status: NotificationStatus.PENDING,
+        channel: NotificationChannel.IN_APP,
       }),
     );
 

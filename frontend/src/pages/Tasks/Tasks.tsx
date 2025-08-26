@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import apiService, { Goal, Task } from '../../services/api';
+import apiService from '../../services/api';
+import type { Goal, Task } from '../../services/api';
 import './Tasks.scss';
 
 interface CreateGoalForm {

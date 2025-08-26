@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import apiService, { User, SystemMetrics, SecurityAlert } from '../../services/api';
+import apiService from '../../services/api';
+import type { User, SystemMetrics, SecurityAlert } from '../../services/api';
 import './Admin.scss';
 
 const Admin: React.FC = () => {
@@ -132,8 +133,10 @@ const Admin: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    const matchesSearch = firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus = filterStatus === 'all' || 
@@ -346,7 +349,7 @@ const Admin: React.FC = () => {
                     <td>
                       <span 
                         className="status-badge"
-                        style={{ backgroundColor: getStatusColor(user.status) }}
+                        style={{ backgroundColor: getStatusColor(user.isActive ? 'active' : 'inactive') }}
                       >
                         {user.isActive ? 'Активен' : 'Неактивен'}
                       </span>
@@ -367,13 +370,13 @@ const Admin: React.FC = () => {
                         </button>
                         <button 
                           className="btn btn--small btn--secondary"
-                          onClick={() => resetUserPassword()}
+                          onClick={() => resetUserPassword(user.id)}
                         >
                           Сброс пароля
                         </button>
                         <button 
                           className="btn btn--small btn--danger"
-                          onClick={() => terminateUserSessions()}
+                          onClick={() => terminateUserSessions(user.id)}
                         >
                           Завершить сессии
                         </button>

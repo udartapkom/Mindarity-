@@ -63,6 +63,9 @@ export class Event {
   @Column({ default: false })
   isPrivate: boolean;
 
+  @Column({ default: true })
+  isPublic: boolean;
+
   @Column({ nullable: true })
   location: string;
 

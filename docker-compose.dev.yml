@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      CORS_ORIGIN: http://localhost:5173,http://dev.mindarity.ru
+      # Dev-specific settings
+      DATABASE_SYNCHRONIZE: "true"
+      LOGGING: "true"
+      DEBUG: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-dev.rule=Host(`dev.mindarity.ru`) && PathPrefix(`/api`)"
+      - "traefik.http.services.backend-dev.loadbalancer.server.port=3000"
+
+  frontend:
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://dev.mindarity.ru/api
+      VITE_KEYCLOAK_URL: http://dev.mindarity.ru/auth
+    ports:
+      - "5173:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-dev.rule=Host(`dev.mindarity.ru`)"
+      - "traefik.http.services.frontend-dev.loadbalancer.server.port=3000"
+
+  nginx:
+    environment:
+      NGINX_ENV: development
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx-dev.rule=Host(`dev.mindarity.ru`)"
+      - "traefik.http.services.nginx-dev.loadbalancer.server.port=80"
+
+  # Dev-specific services
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mindarity-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailhog-dev.rule=Host(`dev.mindarity.ru`) && PathPrefix(`/mail`)"
+      - "traefik.http.services.mailhog-dev.loadbalancer.server.port=8025"
+
+  # Development database with sample data
+  postgres:
+    environment:
+      POSTGRES_DB: mindarity_dev
+      POSTGRES_USER: mindarity_user
+      POSTGRES_PASSWORD: mindarity_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-dev-db.sql:/docker-entrypoint-initdb.d/init-dev-db.sql
+
+volumes:
+  postgres_dev_data:

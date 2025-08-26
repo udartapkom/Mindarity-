@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { initializeSeedData } from './seed-init';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,8 +17,12 @@ async function bootstrap() {
   );
 
   // CORS
+  const corsOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : ['http://localhost:5173'];
+    
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: corsOrigins,
     credentials: true,
   });
 
@@ -34,6 +39,7 @@ async function bootstrap() {
     .addTag('Events', 'События и мысли')
     .addTag('Goals', 'Цели и задачи')
     .addTag('Health', 'Мониторинг состояния системы')
+    .addTag('Seed', 'Инициализация базы данных')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -43,5 +49,8 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation: http://localhost:${port}/api`);
+
+  // Автоматический запуск seed данных
+  await initializeSeedData(app);
 }
 bootstrap();
