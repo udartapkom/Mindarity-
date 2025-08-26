@@ -6,7 +6,6 @@ import {
   IsArray,
   IsDateString,
   IsBoolean,
-  IsUUID,
 } from 'class-validator';
 import { EventType, EmotionalReaction } from '../entities/event.entity';
 
@@ -44,8 +43,4 @@ export class CreateEventDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
-
-  @IsUUID()
-  @IsNotEmpty()
-  userId: string;
 }

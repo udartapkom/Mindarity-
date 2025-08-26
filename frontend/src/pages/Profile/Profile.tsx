@@ -4,7 +4,7 @@ import apiService from '../../services/api';
 import type { User, Session } from '../../services/api';
 import './Profile.scss';
 
-type UserProfile = User;
+// type UserProfile = User; // Убран неиспользуемый тип
 
 interface ChangePasswordForm {
   currentPassword: string;
@@ -13,8 +13,8 @@ interface ChangePasswordForm {
 }
 
 const Profile: React.FC = () => {
-  const { logout } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { logout, updateUser } = useAuth();
+  const [profile, setProfile] = useState<User | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -107,10 +107,17 @@ const Profile: React.FC = () => {
     if (!selectedFile) return;
 
     try {
-      await apiService.uploadAvatar(selectedFile);
+      const updatedUser = await apiService.uploadAvatar(selectedFile);
       setShowAvatarForm(false);
       setSelectedFile(null);
       setAvatarPreview('');
+      
+      // Обновляем профиль с новыми данными
+      setProfile(prev => prev ? { ...prev, avatar: updatedUser.avatar } : null);
+      
+      // Обновляем пользователя в AuthContext (это обновит аватар в Sidebar)
+      updateUser({ avatar: updatedUser.avatar });
+      
       alert('Аватар успешно загружен');
     } catch (error) {
       console.error('Error uploading avatar:', error);
@@ -132,19 +139,45 @@ const Profile: React.FC = () => {
 
   const terminateSession = async (sessionId: string) => {
     try {
-      // Временно используем заглушку
+      await apiService.terminateSession(sessionId);
+      // Обновляем локальное состояние
       setSessions(prev => prev.filter(session => session.id !== sessionId));
+      alert('Сессия завершена');
     } catch (error) {
       console.error('Error terminating session:', error);
+      alert('Ошибка при завершении сессии');
     }
   };
 
   const terminateAllOtherSessions = async () => {
     try {
-      // Временно используем заглушку
+      await apiService.terminateAllOtherSessions();
+      // Обновляем локальное состояние - оставляем только текущую сессию
       setSessions(prev => prev.filter(session => session.isCurrent));
+      alert('Все другие сессии завершены');
     } catch (error) {
       console.error('Error terminating all sessions:', error);
+      alert('Ошибка при завершении сессий');
+    }
+  };
+
+  const terminateAllSessions = async () => {
+    const confirmed = window.confirm(
+      'Вы уверены, что хотите завершить ВСЕ сессии? Это приведет к выходу из системы на всех устройствах, включая текущее.'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      // Завершаем все сессии, включая текущую
+      await apiService.terminateAllUserSessions();
+      alert('Все сессии завершены. Вы будете перенаправлены на страницу входа.');
+      // Выходим из системы и перенаправляем на страницу входа
+      logout();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error terminating all sessions:', error);
+      alert('Ошибка при завершении всех сессий');
     }
   };
 
@@ -340,12 +373,20 @@ const Profile: React.FC = () => {
         <div className="profile-section">
           <div className="section-header">
             <h3>Активные сессии</h3>
-            <button 
-              className="btn btn--danger"
-              onClick={terminateAllOtherSessions}
-            >
-              Завершить все сессии
-            </button>
+            <div className="session-actions">
+              <button 
+                className="btn btn--secondary"
+                onClick={terminateAllOtherSessions}
+              >
+                Завершить другие сессии
+              </button>
+              <button 
+                className="btn btn--danger"
+                onClick={terminateAllSessions}
+              >
+                Завершить ВСЕ сессии
+              </button>
+            </div>
           </div>
 
           <div className="sessions-list">

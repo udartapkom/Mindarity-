@@ -1,78 +1,102 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as speakeasy from 'speakeasy';
-import * as QRCode from 'qrcode';
 
 @Injectable()
 export class TwoFactorService {
   private readonly logger = new Logger(TwoFactorService.name);
+  private readonly otpStore = new Map<string, { code: string; expiresAt: Date }>();
 
   /**
-   * Генерирует секретный ключ для 2FA
+   * Генерирует четырёхзначный OTP код
    */
-  generateSecret(email: string): string {
-    return speakeasy.generateSecret({
-      name: `Mindarity (${email})`,
-      issuer: 'Mindarity',
-      length: 32,
-    }).base32;
+  generateOTP(): string {
+    return Math.floor(1000 + Math.random() * 9000).toString();
   }
 
   /**
-   * Генерирует QR код для приложения аутентификации
+   * Генерирует OTP код для пользователя и сохраняет его
    */
-  async generateQRCode(secret: string, email: string): Promise<string> {
-    const otpauthUrl = speakeasy.otpauthURL({
-      secret,
-      label: email,
-      issuer: 'Mindarity',
-      algorithm: 'sha1',
-      digits: 6,
-    });
-
-    try {
-      return await QRCode.toDataURL(otpauthUrl);
-    } catch (error) {
-      this.logger.error('Error generating QR code:', error);
-      throw new Error('Failed to generate QR code');
-    }
+  generateOTPForUser(userId: string): { code: string; expiresAt: Date } {
+    const code = this.generateOTP();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
+    
+    this.otpStore.set(userId, { code, expiresAt });
+    
+    this.logger.log(`Generated OTP ${code} for user ${userId}`);
+    
+    return { code, expiresAt };
   }
 
   /**
-   * Проверяет TOTP токен
+   * Проверяет OTP код для пользователя
    */
-  verifyToken(token: string, secret: string): boolean {
-    return speakeasy.totp.verify({
-      secret,
-      encoding: 'base32',
-      token,
-      window: 2, // Разрешаем отклонение в 2 периода (60 секунд)
-    });
-  }
-
-  /**
-   * Генерирует TOTP токен для тестирования
-   */
-  generateToken(secret: string): string {
-    return speakeasy.totp({
-      secret,
-      encoding: 'base32',
-      digits: 6,
-    });
-  }
-
-  /**
-   * Проверяет, что секрет валиден
-   */
-  validateSecret(secret: string): boolean {
-    try {
-      // Пытаемся сгенерировать токен для проверки валидности секрета
-      speakeasy.totp({
-        secret,
-        encoding: 'base32',
-      });
-      return true;
-    } catch {
+  verifyOTP(userId: string, code: string): boolean {
+    const storedOTP = this.otpStore.get(userId);
+    
+    if (!storedOTP) {
+      this.logger.warn(`No OTP found for user ${userId}`);
       return false;
     }
+    
+    if (new Date() > storedOTP.expiresAt) {
+      this.logger.warn(`OTP expired for user ${userId}`);
+      this.otpStore.delete(userId);
+      return false;
+    }
+    
+    if (storedOTP.code !== code) {
+      this.logger.warn(`Invalid OTP for user ${userId}: expected ${storedOTP.code}, got ${code}`);
+      return false;
+    }
+    
+    // Удаляем использованный код
+    this.otpStore.delete(userId);
+    this.logger.log(`OTP verified successfully for user ${userId}`);
+    
+    return true;
+  }
+
+  /**
+   * Получает текущий OTP код для пользователя (для отображения на экране)
+   */
+  getCurrentOTP(userId: string): { code: string; expiresAt: Date } | null {
+    const storedOTP = this.otpStore.get(userId);
+    
+    if (!storedOTP || new Date() > storedOTP.expiresAt) {
+      return null;
+    }
+    
+    return storedOTP;
+  }
+
+  /**
+   * Очищает истекшие OTP коды
+   */
+  cleanupExpiredOTPs(): void {
+    const now = new Date();
+    for (const [userId, otp] of this.otpStore.entries()) {
+      if (now > otp.expiresAt) {
+        this.otpStore.delete(userId);
+      }
+    }
+  }
+
+  // Методы для совместимости с существующим кодом
+  generateSecret(email: string): string {
+    return this.generateOTP();
+  }
+
+  async generateQRCode(secret: string, email: string): Promise<string> {
+    // Для простой 2FA возвращаем пустую строку
+    return '';
+  }
+
+  verifyToken(token: string, secret: string): boolean {
+    // Для простой 2FA всегда возвращаем false
+    return false;
+  }
+
+  generateTOTPToken(secret: string): string {
+    // Для простой 2FA возвращаем пустую строку
+    return '';
   }
 }

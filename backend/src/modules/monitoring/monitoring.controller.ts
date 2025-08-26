@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Delete, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
   HealthCheck,
@@ -71,5 +71,35 @@ export class MonitoringController {
   @ApiResponse({ status: 200, description: 'External APIs health' })
   async getApisHealth() {
     return this.monitoringService.getApiHealth();
+  }
+
+  @Get('security/alerts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get security alerts (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Security alerts' })
+  async getSecurityAlerts() {
+    return this.monitoringService.getSecurityAlerts();
+  }
+
+  @Delete('security/alerts/failed-logins/:username/:ipAddress')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete failed login attempts for specific user and IP (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Failed login attempts deleted' })
+  async deleteFailedLoginAttempts(
+    @Param('username') username: string,
+    @Param('ipAddress') ipAddress: string,
+  ) {
+    return this.monitoringService.deleteFailedLoginAttempts(username, ipAddress);
+  }
+
+  @Delete('security/alerts/failed-logins')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete all failed login attempts (Admin only)' })
+  @ApiResponse({ status: 200, description: 'All failed login attempts deleted' })
+  async deleteAllFailedLoginAttempts() {
+    return this.monitoringService.deleteAllFailedLoginAttempts();
   }
 }

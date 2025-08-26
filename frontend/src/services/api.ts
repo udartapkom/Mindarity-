@@ -24,14 +24,20 @@ export interface User {
   lastName?: string;
   avatar?: string;
   bio?: string;
-  isActive: boolean;
+  isActive?: boolean;  // Keep for backward compatibility
+  status: string;      // New field from API
   createdAt: string;
-  lastLoginAt: string;
+  lastLoginAt?: string;
 }
 
 export interface AuthResponse {
-  access_token: string;
-  user: User;
+  access_token?: string;
+  user?: User;
+  requires2FA?: boolean;
+  userId?: string;
+  message?: string;
+  otpCode?: string;
+  expiresAt?: Date;
 }
 
 export interface Event {
@@ -46,6 +52,7 @@ export interface Event {
   tags?: string[];
   viewCount: number;
   likeCount: number;
+  userId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +71,7 @@ export interface Goal {
   isRecurring: boolean;
   recurringPattern?: string;
   isPublic: boolean;
+  userId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +89,7 @@ export interface Task {
   notes?: string;
   order: number;
   goalId: string;
+  userId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,10 +103,42 @@ export interface Session {
 }
 
 export interface SystemMetrics {
-  cpu: number;
-  memory: number;
-  disk: number;
-  load: number;
+  timestamp: string;
+  system: {
+    platform: string;
+    arch: string;
+    nodeVersion: string;
+    uptime: number;
+  };
+  resources: {
+    memory: {
+      total: string;
+      used: string;
+      free: string;
+      usagePercent: number;
+      critical: boolean;
+    };
+    cpu: {
+      loadAverage: number[];
+      usagePercent: number;
+      critical: boolean;
+    };
+    disk: {
+      usagePercent: number;
+      critical: boolean;
+    };
+  };
+  application: {
+    processId: number;
+    memoryUsage: {
+      rss: number;
+      heapTotal: number;
+      heapUsed: number;
+      external: number;
+      arrayBuffers: number;
+    };
+    uptime: number;
+  };
 }
 
 export interface SecurityAlert {
@@ -157,24 +198,82 @@ class ApiService {
 
   // Аутентификация
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
+    const response: AxiosResponse<any> = await this.api.post('/auth/login', credentials);
+    
+    // 2FA теперь всегда требуется для всех пользователей
+    if (response.data.requires2FA) {
+      return {
+        requires2FA: true,
+        userId: response.data.userId,
+        message: response.data.message,
+        otpCode: response.data.otpCode,
+        expiresAt: response.data.expiresAt,
+      };
+    }
+    
+    // Если по какой-то причине 2FA не требуется, обрабатываем обычный вход
+    const mappedUser: User = {
+      id: response.data.user.id,
+      email: response.data.user.email,
+      username: response.data.user.username,
+      role: response.data.user.role,
+      firstName: response.data.user.firstName,
+      lastName: response.data.user.lastName,
+      avatar: response.data.user.avatar,
+      bio: (response.data.user as any).bio,
+      isActive: (response.data.user as any).status ? (response.data.user as any).status === 'active' : true,
+      status: (response.data.user as any).status || 'active',
+      createdAt: (response.data.user as any).createdAt || new Date().toISOString(),
+      lastLoginAt: (response.data.user as any).lastLoginAt || new Date().toISOString(),
+    };
+    
     this.setAuthToken(response.data.access_token);
-    return response.data;
+    return { access_token: response.data.access_token, user: mappedUser };
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', userData);
+    const response: AxiosResponse<{ access_token: string; user: any }> = await this.api.post('/auth/register', userData);
+    const mappedUser: User = {
+      id: response.data.user.id,
+      email: response.data.user.email,
+      username: response.data.user.username,
+      role: response.data.user.role,
+      firstName: response.data.user.firstName,
+      lastName: response.data.user.lastName,
+      avatar: response.data.user.avatar,
+      bio: (response.data.user as any).bio,
+      isActive: (response.data.user as any).status ? (response.data.user as any).status === 'active' : true,
+      status: (response.data.user as any).status || 'active',
+      createdAt: (response.data.user as any).createdAt || new Date().toISOString(),
+      lastLoginAt: (response.data.user as any).lastLoginAt || new Date().toISOString(),
+    };
     this.setAuthToken(response.data.access_token);
-    return response.data;
+    return { access_token: response.data.access_token, user: mappedUser };
   }
 
   async logout() {
     this.clearAuthToken();
   }
 
-  async getProfile() {
-    const response = await this.api.get('/auth/profile');
-    return response.data;
+  async getProfile(): Promise<User> {
+    // Используем бэкенд-эндпоинт users/profile (более полный профиль)
+    const response: AxiosResponse<any> = await this.api.get('/users/profile');
+    const data = response.data;
+    const mapped: User = {
+      id: data.id,
+      email: data.email,
+      username: data.username,
+      role: data.role,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      avatar: data.avatar,
+      bio: data.bio,
+      isActive: (data.status ? data.status === 'active' : true),
+      status: data.status || 'active',
+      createdAt: data.createdAt,
+      lastLoginAt: data.lastLoginAt,
+    };
+    return mapped;
   }
 
   // События
@@ -248,84 +347,218 @@ class ApiService {
     return response.data;
   }
 
+  async getEventsStatistics() {
+    const response = await this.api.get('/events/stats');
+    return response.data;
+  }
+
   async getGoalsStatistics() {
     const response = await this.api.get('/goals/statistics');
     return response.data;
   }
 
-  // Дашборд статистика
+  // Дашборд статистика (упрощенная заглушка на основании доступных эндпоинтов)
   async getDashboardStats(period: 'week' | 'month' | 'year' = 'week') {
-    const response = await this.api.get('/dashboard/stats', { params: { period } });
-    return response.data;
+    try {
+      const [goalsStats, emotional, eventsStats] = await Promise.all([
+        this.getGoalsStatistics(),
+        this.getEmotionalReactionsStats(),
+        this.getEventsStatistics(),
+      ]);
+      return {
+        totalEvents: eventsStats?.totalEvents ?? 0,
+        totalGoals: goalsStats?.totalGoals ?? 0,
+        totalTasks: goalsStats?.totalTasks ?? 0,
+        completedTasks: goalsStats?.completedTasks ?? 0,
+        upcomingDeadlines: goalsStats?.upcomingDeadlines ?? 0,
+        moodDistribution: emotional || {},
+        goalProgress: goalsStats?.goalProgress || [],
+        recentActivity: eventsStats?.recentEvents || [],
+        period,
+      };
+    } catch {
+      return {
+        totalEvents: 0,
+        totalGoals: 0,
+        totalTasks: 0,
+        completedTasks: 0,
+        upcomingDeadlines: 0,
+        moodDistribution: {},
+        goalProgress: [],
+        recentActivity: [],
+        period,
+      };
+    }
   }
 
-  // Пользователи (для админа)
-  async getUsers() {
+  // Пользователи
+  async getUsers(): Promise<User[]> {
     const response = await this.api.get('/users');
     return response.data;
   }
 
-  async updateUserStatus(userId: string, isActive: boolean) {
-    const response = await this.api.patch(`/users/${userId}/status`, { isActive });
+  async getUser(id: string): Promise<User> {
+    const response = await this.api.get(`/users/${id}`);
     return response.data;
   }
 
-  async resetUserPassword(userId: string) {
-    const response = await this.api.post(`/users/${userId}/reset-password`);
+  async updateUser(id: string, userData: Partial<User>): Promise<User> {
+    const response = await this.api.patch(`/users/${id}`, userData);
     return response.data;
   }
 
-  async terminateUserSessions(userId: string) {
-    const response = await this.api.post(`/users/${userId}/terminate-sessions`);
-    return response.data;
+  async deleteUser(id: string): Promise<void> {
+    await this.api.delete(`/users/${id}`);
   }
 
-  // Системные метрики (для админа)
-  async getSystemMetrics() {
-    const response = await this.api.get('/monitoring/system-metrics');
-    return response.data;
-  }
-
-  async getSecurityAlerts() {
-    const response = await this.api.get('/monitoring/security-alerts');
-    return response.data;
-  }
-
-  async resolveSecurityAlert(alertId: string) {
-    const response = await this.api.patch(`/monitoring/security-alerts/${alertId}/resolve`);
-    return response.data;
-  }
-
-  // Профиль пользователя
-  async updateProfile(profileData: Partial<User>) {
-    const response = await this.api.patch('/users/profile', profileData);
-    return response.data;
-  }
-
-  async changePassword(passwordData: { currentPassword: string; newPassword: string }) {
-    const response = await this.api.post('/users/change-password', passwordData);
-    return response.data;
-  }
-
-  async uploadAvatar(file: File) {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    const response = await this.api.post('/users/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
-  }
-
-  async getSessions() {
+  // Сессии
+  async getSessions(): Promise<Session[]> {
     const response = await this.api.get('/users/sessions');
     return response.data;
   }
 
-  async terminateSession(sessionId: string) {
-    const response = await this.api.delete(`/users/sessions/${sessionId}`);
+  async terminateSession(sessionId: string): Promise<void> {
+    await this.api.delete(`/users/sessions/${sessionId}`);
+  }
+
+  async terminateAllOtherSessions(): Promise<void> {
+    await this.api.delete('/users/sessions');
+  }
+
+  // Мониторинг
+  async getSystemMetrics(): Promise<SystemMetrics> {
+    const response = await this.api.get('/monitoring/metrics/system');
+    return response.data;
+  }
+
+  async getApplicationMetrics() {
+    const response = await this.api.get('/monitoring/metrics/application');
+    return response.data;
+  }
+
+
+
+  // Файлы
+  async uploadFile(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async uploadLargeFile(formData: FormData, onProgress?: (progress: number) => void): Promise<any> {
+    const response = await this.api.post('/files/upload-large', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+    return response.data;
+  }
+
+  async getFiles(): Promise<any[]> {
+    const response = await this.api.get('/files');
+    return response.data;
+  }
+
+  async deleteFile(fileId: string): Promise<void> {
+    await this.api.delete(`/files/${fileId}`);
+  }
+
+  // Поиск
+  async search(query: string): Promise<any[]> {
+    const response = await this.api.get('/search', { params: { query } });
+    return response.data;
+  }
+
+  // Уведомления
+  async getNotifications(): Promise<any[]> {
+    const response = await this.api.get('/notifications');
+    return response.data;
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    await this.api.put(`/notifications/${notificationId}/read`);
+  }
+
+  // Big Data
+  async uploadBigDataFile(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post('/bigdata/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async getBigDataStatus(jobId: string): Promise<any> {
+    const response = await this.api.get(`/bigdata/status/${jobId}`);
+    return response.data;
+  }
+
+  // Admin methods
+  async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+    await this.api.patch(`/users/${userId}/status`, { status: isActive ? 'active' : 'inactive' });
+  }
+
+  async resetUserPassword(userId: string): Promise<void> {
+    await this.api.post(`/users/${userId}/reset-password`);
+  }
+
+  async terminateUserSessions(userId: string): Promise<void> {
+    await this.api.delete(`/users/${userId}/sessions`);
+  }
+
+  async terminateAllUserSessions(): Promise<void> {
+    await this.api.delete('/users/sessions/all');
+  }
+
+  // Profile methods
+  async updateProfile(userData: Partial<User>): Promise<User> {
+    const response = await this.api.patch('/users/profile', userData);
+    return response.data;
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+    await this.api.post('/auth/change-password', data);
+  }
+
+  async uploadAvatar(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await this.api.post('/users/profile/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async getSecurityAlerts(): Promise<any> {
+    const response = await this.api.get('/monitoring/security/alerts');
+    return response.data;
+  }
+
+  async deleteFailedLoginAttempts(username: string, ipAddress: string): Promise<any> {
+    const response = await this.api.delete(`/monitoring/security/alerts/failed-logins/${encodeURIComponent(username)}/${encodeURIComponent(ipAddress)}`);
+    return response.data;
+  }
+
+  async deleteAllFailedLoginAttempts(): Promise<any> {
+    const response = await this.api.delete('/monitoring/security/alerts/failed-logins');
     return response.data;
   }
 }
 
-export const apiService = new ApiService();
-export default apiService; 
+export default new ApiService();

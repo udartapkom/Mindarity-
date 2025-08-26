@@ -34,22 +34,18 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @ApiOperation({ summary: 'Get user profile' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@Request() req) {
-    return req.user;
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('refresh')
-  @ApiOperation({ summary: 'Refresh JWT token' })
-  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async refreshToken(@Request() req) {
-    return this.authService.refreshToken(req.user.id);
+  @Post('login-2fa')
+  @ApiOperation({ summary: 'Complete login with 2FA OTP code' })
+  @ApiResponse({ status: 200, description: 'Login completed successfully with 2FA' })
+  @ApiResponse({ status: 401, description: 'Invalid OTP code' })
+  async loginWith2FA(
+    @Body() body: { userId: string; otpCode: string },
+    @Request() req,
+  ) {
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+    
+    return this.authService.loginWith2FA(body.userId, body.otpCode, userAgent, ipAddress);
   }
 
   @UseGuards(JwtAuthGuard)

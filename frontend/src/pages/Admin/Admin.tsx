@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/useAuth';
+import type { User, SystemMetrics } from '../../services/api';
 import apiService from '../../services/api';
-import type { User, SystemMetrics, SecurityAlert } from '../../services/api';
+import SecurityAlerts from '../../components/SecurityAlerts/SecurityAlerts';
 import './Admin.scss';
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
-  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -17,12 +17,9 @@ const Admin: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      await Promise.all([
-        fetchUsers(),
-        fetchSystemMetrics(),
-        fetchSecurityAlerts(),
-      ]);
-    } catch (error) {
+      await fetchUsers();
+      await fetchSystemMetrics();
+    } catch (error: unknown) {
       console.error('Error fetching admin data:', error);
     } finally {
       setLoading(false);
@@ -30,19 +27,14 @@ const Admin: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
-      return;
-    }
     fetchData();
-    const interval = setInterval(fetchSystemMetrics, 30000); // Обновляем каждые 30 секунд
-    return () => clearInterval(interval);
-  }, [user, fetchData]);
+  }, [fetchData]);
 
   const fetchUsers = async () => {
     try {
       const users = await apiService.getUsers();
       setUsers(users);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
     }
   };
@@ -51,17 +43,8 @@ const Admin: React.FC = () => {
     try {
       const metrics = await apiService.getSystemMetrics();
       setSystemMetrics(metrics);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching system metrics:', error);
-    }
-  };
-
-  const fetchSecurityAlerts = async () => {
-    try {
-      const alerts = await apiService.getSecurityAlerts();
-      setSecurityAlerts(alerts);
-    } catch (error) {
-      console.error('Error fetching security alerts:', error);
     }
   };
 
@@ -69,9 +52,9 @@ const Admin: React.FC = () => {
     try {
       await apiService.updateUserStatus(userId, isActive);
       setUsers(prev => prev.map(user => 
-        user.id === userId ? { ...user, isActive } : user
+        user.id === userId ? { ...user, status: isActive ? 'active' : 'inactive' } : user
       ));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user status:', error);
     }
   };
@@ -80,7 +63,7 @@ const Admin: React.FC = () => {
     try {
       await apiService.resetUserPassword(userId);
       alert('Пользователю отправлено уведомление о необходимости сброса пароля');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resetting user password:', error);
     }
   };
@@ -89,21 +72,15 @@ const Admin: React.FC = () => {
     try {
       await apiService.terminateUserSessions(userId);
       alert('Все сессии пользователя завершены');
-    } catch (error) {
+      // Обновляем список пользователей для отображения актуального состояния
+      await fetchUsers();
+    } catch (error: any) {
       console.error('Error terminating user sessions:', error);
+      alert('Ошибка при завершении сессий пользователя');
     }
   };
 
-  const resolveSecurityAlert = async (alertId: string) => {
-    try {
-      await apiService.resolveSecurityAlert(alertId);
-      setSecurityAlerts(prev => prev.map(alert => 
-        alert.id === alertId ? { ...alert, resolved: true } : alert
-      ));
-    } catch (error) {
-      console.error('Error resolving security alert:', error);
-    }
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -115,15 +92,7 @@ const Admin: React.FC = () => {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'low': return '#28a745';
-      case 'medium': return '#ffc107';
-      case 'high': return '#fd7e14';
-      case 'critical': return '#dc3545';
-      default: return '#6c757d';
-    }
-  };
+
 
   const getResourceStatus = (value: number) => {
     if (value < 50) return { status: 'normal', color: '#28a745' };
@@ -140,8 +109,8 @@ const Admin: React.FC = () => {
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'active' && user.isActive) ||
-                         (filterStatus === 'inactive' && !user.isActive);
+                         (filterStatus === 'active' && user.status === 'active') ||
+                         (filterStatus === 'inactive' && user.status !== 'active');
     
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -166,14 +135,8 @@ const Admin: React.FC = () => {
   }
 
   return (
-    <div className="admin">
-      <div className="admin__header">
-        <h1>Панель администратора</h1>
-        <button className="btn btn--primary" onClick={fetchData}>
-          Обновить данные
-        </button>
-      </div>
-
+    <div className="admin-page">
+      <h1>Администрирование</h1>
       <div className="admin__content">
         {/* Системные метрики */}
         <div className="admin-section">
@@ -181,15 +144,29 @@ const Admin: React.FC = () => {
           {systemMetrics && (
             <div className="metrics-grid">
               <div className="metric-card">
-                <div className="metric-icon">🖥️</div>
+                <div className="metric-icon">💻</div>
                 <div className="metric-content">
-                  <div className="metric-value">{systemMetrics.cpu}%</div>
+                  <div className="metric-value">{systemMetrics.resources?.cpu?.usagePercent?.toFixed(1) || '0.0'}%</div>
                   <div className="metric-label">CPU</div>
                   <div 
                     className="metric-status"
-                    style={{ color: getResourceStatus(systemMetrics.cpu).color }}
+                    style={{ color: getResourceStatus(systemMetrics.resources?.cpu?.usagePercent || 0).color }}
                   >
-                    {getResourceStatus(systemMetrics.cpu).status}
+                    {getResourceStatus(systemMetrics.resources?.cpu?.usagePercent || 0).status}
+                  </div>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon">🧠</div>
+                <div className="metric-content">
+                  <div className="metric-value">{systemMetrics.resources?.memory?.usagePercent?.toFixed(1) || '0.0'}%</div>
+                  <div className="metric-label">Память</div>
+                  <div 
+                    className="metric-status"
+                    style={{ color: getResourceStatus(systemMetrics.resources?.memory?.usagePercent || 0).color }}
+                  >
+                    {getResourceStatus(systemMetrics.resources?.memory?.usagePercent || 0).status}
                   </div>
                 </div>
               </div>
@@ -197,27 +174,13 @@ const Admin: React.FC = () => {
               <div className="metric-card">
                 <div className="metric-icon">💾</div>
                 <div className="metric-content">
-                  <div className="metric-value">{systemMetrics.memory}%</div>
-                  <div className="metric-label">Память</div>
-                  <div 
-                    className="metric-status"
-                    style={{ color: getResourceStatus(systemMetrics.memory).color }}
-                  >
-                    {getResourceStatus(systemMetrics.memory).status}
-                  </div>
-                </div>
-              </div>
-
-              <div className="metric-card">
-                <div className="metric-icon">💿</div>
-                <div className="metric-content">
-                  <div className="metric-value">{systemMetrics.disk}%</div>
+                  <div className="metric-value">{systemMetrics.resources?.disk?.usagePercent?.toFixed(1) || '0.0'}%</div>
                   <div className="metric-label">Диск</div>
                   <div 
                     className="metric-status"
-                    style={{ color: getResourceStatus(systemMetrics.disk).color }}
+                    style={{ color: getResourceStatus(systemMetrics.resources?.disk?.usagePercent || 0).color }}
                   >
-                    {getResourceStatus(systemMetrics.disk).status}
+                    {getResourceStatus(systemMetrics.resources?.disk?.usagePercent || 0).status}
                   </div>
                 </div>
               </div>
@@ -225,13 +188,13 @@ const Admin: React.FC = () => {
               <div className="metric-card">
                 <div className="metric-icon">📊</div>
                 <div className="metric-content">
-                  <div className="metric-value">{systemMetrics.load.toFixed(2)}</div>
+                  <div className="metric-value">{systemMetrics.resources?.cpu?.loadAverage?.[0]?.toFixed(2) || '0.00'}</div>
                   <div className="metric-label">Нагрузка</div>
                   <div 
                     className="metric-status"
-                    style={{ color: getResourceStatus(systemMetrics.load * 20).color }}
+                    style={{ color: getResourceStatus(Math.min((systemMetrics.resources?.cpu?.loadAverage?.[0] || 0) * 25, 100)).color }}
                   >
-                    {getResourceStatus(systemMetrics.load * 20).status}
+                    {getResourceStatus(Math.min((systemMetrics.resources?.cpu?.loadAverage?.[0] || 0) * 25, 100)).status}
                   </div>
                 </div>
               </div>
@@ -240,49 +203,7 @@ const Admin: React.FC = () => {
         </div>
 
         {/* Система безопасности */}
-        <div className="admin-section">
-          <h2>Система безопасности</h2>
-          <div className="security-alerts">
-            {securityAlerts.length === 0 ? (
-              <div className="no-alerts">Активных предупреждений нет</div>
-            ) : (
-              securityAlerts.map(alert => (
-                <div key={alert.id} className={`security-alert ${alert.severity}`}>
-                  <div className="alert-header">
-                    <div className="alert-type">
-                      {alert.type === 'failed_login' ? '🔐' :
-                       alert.type === 'system_error' ? '⚠️' :
-                       alert.type === 'resource_high' ? '📈' : '🚨'}
-                      {alert.type === 'failed_login' ? 'Неудачные попытки входа' :
-                       alert.type === 'system_error' ? 'Ошибка системы' :
-                       alert.type === 'resource_high' ? 'Высокая нагрузка' : 'Критическая ошибка'}
-                    </div>
-                    <div 
-                      className="alert-severity"
-                      style={{ backgroundColor: getSeverityColor(alert.severity) }}
-                    >
-                      {alert.severity.toUpperCase()}
-                    </div>
-                  </div>
-                  <div className="alert-message">{alert.message}</div>
-                  <div className="alert-footer">
-                    <span className="alert-time">
-                      {new Date(alert.timestamp).toLocaleString('ru-RU')}
-                    </span>
-                    {!alert.resolved && (
-                      <button 
-                        className="btn btn--small"
-                        onClick={() => resolveSecurityAlert(alert.id)}
-                      >
-                        Решено
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <SecurityAlerts />
 
         {/* Управление пользователями */}
         <div className="admin-section">
@@ -349,9 +270,9 @@ const Admin: React.FC = () => {
                     <td>
                       <span 
                         className="status-badge"
-                        style={{ backgroundColor: getStatusColor(user.isActive ? 'active' : 'inactive') }}
+                        style={{ backgroundColor: getStatusColor(user.status) }}
                       >
-                        {user.isActive ? 'Активен' : 'Неактивен'}
+                        {user.status === 'active' ? 'Активен' : 'Неактивен'}
                       </span>
                     </td>
                     <td>
@@ -364,9 +285,9 @@ const Admin: React.FC = () => {
                       <div className="user-actions">
                         <button 
                           className="btn btn--small"
-                          onClick={() => toggleUserStatus(user.id, !user.isActive)}
+                          onClick={() => toggleUserStatus(user.id, user.status !== 'active')}
                         >
-                          {user.isActive ? 'Деактивировать' : 'Активировать'}
+                          {user.status === 'active' ? 'Деактивировать' : 'Активировать'}
                         </button>
                         <button 
                           className="btn btn--small btn--secondary"
@@ -399,7 +320,7 @@ const Admin: React.FC = () => {
             </div>
             <div className="stat-card">
               <div className="stat-value">
-                {users.filter(u => u.isActive).length}
+                {users.filter(u => u.status === 'active').length}
               </div>
               <div className="stat-label">Активных пользователей</div>
             </div>
@@ -410,9 +331,7 @@ const Admin: React.FC = () => {
               <div className="stat-label">Администраторов</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">
-                {securityAlerts.filter(a => !a.resolved).length}
-              </div>
+              <div className="stat-value">-</div>
               <div className="stat-label">Активных предупреждений</div>
             </div>
           </div>

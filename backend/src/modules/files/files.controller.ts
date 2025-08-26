@@ -38,8 +38,8 @@ export class FilesController {
   @ApiOperation({ summary: 'Create a new file record' })
   @ApiBearerAuth()
   @Roles(UserRole.USER, UserRole.ADMIN)
-  create(@Body() createFileDto: CreateFileDto) {
-    return this.filesService.create(createFileDto);
+  create(@Body() createFileDto: CreateFileDto, @Request() req: any) {
+    return this.filesService.create(createFileDto, req.user.id);
   }
 
   @Post('upload')
@@ -62,17 +62,39 @@ export class FilesController {
   })
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(
+  async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
-    @Body('bucket') bucket: string,
     @Request() req: any,
   ) {
     const userId = req.user.id;
-    return await this.filesService.uploadFile(
+    return await this.filesService.uploadAvatar(
       file,
       userId,
-      bucket || 'default',
     );
+  }
+
+  @Post('upload-large')
+  @ApiOperation({ summary: 'Upload a large file with resource control' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadLargeFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ) {
+    const userId = req.user.id;
+    return await this.filesService.uploadLargeFile(file, userId);
   }
 
   @Get()
@@ -84,7 +106,7 @@ export class FilesController {
     if (req?.user?.role !== UserRole.ADMIN) {
       return this.filesService.findAll(req.user.id);
     }
-    return this.filesService.findAll(userId);
+    return this.filesService.findAll(userId || req.user.id);
   }
 
   @Get('stats')
@@ -94,49 +116,50 @@ export class FilesController {
   async getStats(@Request() req: any, @Query('userId') userId?: string) {
     // Если пользователь не админ, показываем только его статистику
     if (req?.user?.role !== UserRole.ADMIN) {
-      return await this.filesService.getFileStats(req.user.id);
+      return await this.filesService.getStats(req.user.id);
     }
-    return await this.filesService.getFileStats(userId);
+    return await this.filesService.getStats(userId || req.user.id);
+  }
+
+  @Get('storage-stats')
+  @ApiOperation({ summary: 'Get storage statistics with system info' })
+  @ApiBearerAuth()
+  @Roles(UserRole.USER, UserRole.ADMIN)
+  async getStorageStats(@Request() req: any) {
+    return await this.filesService.getStorageStats(req.user.id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a file by id' })
   @ApiBearerAuth()
   @Roles(UserRole.USER, UserRole.ADMIN)
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Request() req: any) {
     // Проверяем права доступа
-    return this.filesService.findOne(id);
+    return this.filesService.findOne(id, req.user.id);
   }
 
   @Get(':id/download')
-  @ApiOperation({ summary: 'Get presigned download URL' })
+  @ApiOperation({ summary: 'Get file download info' })
   @ApiBearerAuth()
   @Roles(UserRole.USER, UserRole.ADMIN)
-  async getDownloadUrl(
-    @Param('id') id: string,
-    @Query('expiresIn') expiresIn?: string,
-  ) {
-    const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 3600;
-    const url = await this.filesService.generatePresignedUrl(
-      id,
-      expiresInSeconds,
-    );
-    return { downloadUrl: url };
+  async getDownloadInfo(@Param('id') id: string, @Request() req: any) {
+    const file = await this.filesService.findOne(id, req.user.id);
+    return { file };
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a file' })
   @ApiBearerAuth()
   @Roles(UserRole.USER, UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateFileDto: UpdateFileDto) {
-    return this.filesService.update(id, updateFileDto);
+  update(@Param('id') id: string, @Body() updateFileDto: UpdateFileDto, @Request() req: any) {
+    return this.filesService.update(id, updateFileDto, req.user.id);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a file' })
   @ApiBearerAuth()
   @Roles(UserRole.USER, UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.filesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.filesService.remove(id, req.user.id);
   }
 }

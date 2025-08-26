@@ -18,9 +18,10 @@ export class EventsService {
     private eventsRepository: Repository<Event>,
   ) {}
 
-  async create(createEventDto: CreateEventDto): Promise<Event> {
+  async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
     const event = this.eventsRepository.create({
       ...createEventDto,
+      userId,
       eventDate: new Date(createEventDto.eventDate),
     });
 
@@ -179,5 +180,40 @@ export class EventsService {
 
   async getEventsCount(userId: string): Promise<number> {
     return this.eventsRepository.count({ where: { userId } });
+  }
+
+  async getEventsStatistics(userId: string): Promise<{
+    totalEvents: number;
+    eventsByType: Record<string, number>;
+    recentEvents: Array<{ title: string; date: string; type: string }>;
+  }> {
+    const events = await this.eventsRepository.find({
+      where: { userId },
+      order: { eventDate: 'DESC' },
+      take: 10,
+    });
+
+    const totalEvents = await this.getEventsCount(userId);
+    
+    // Статистика по типам событий
+    const eventsByType: Record<string, number> = {};
+    events.forEach(event => {
+      eventsByType[event.type] = (eventsByType[event.type] || 0) + 1;
+    });
+
+    // Последние события для активности
+    const recentEvents = events.slice(0, 5).map(event => ({
+      title: event.title,
+      date: event.eventDate instanceof Date 
+        ? event.eventDate.toISOString().split('T')[0]
+        : new Date(event.eventDate).toISOString().split('T')[0],
+      type: event.type,
+    }));
+
+    return {
+      totalEvents,
+      eventsByType,
+      recentEvents,
+    };
   }
 }

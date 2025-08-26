@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/useAuth';
 import apiService from '../../services/api';
 import type { Goal, Task } from '../../services/api';
 import './Tasks.scss';
@@ -8,9 +7,7 @@ interface CreateGoalForm {
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high';
-  category: string;
   dueDate: string;
-  tags: string;
 }
 
 interface CreateTaskForm {
@@ -18,28 +15,23 @@ interface CreateTaskForm {
   description: string;
   priority: 'low' | 'medium' | 'high';
   dueDate: string;
-  estimatedTime: number;
   goalId: string;
-  tags: string;
 }
 
 const Tasks: React.FC = () => {
-  const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'goals' | 'calendar' | 'kanban'>('goals');
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
 
   const [goalForm, setGoalForm] = useState<CreateGoalForm>({
     title: '',
     description: '',
     priority: 'medium',
-    category: '',
     dueDate: '',
-    tags: '',
   });
 
   const [taskForm, setTaskForm] = useState<CreateTaskForm>({
@@ -47,9 +39,7 @@ const Tasks: React.FC = () => {
     description: '',
     priority: 'medium',
     dueDate: '',
-    estimatedTime: 60,
     goalId: '',
-    tags: '',
   });
 
   const priorities = [
@@ -58,33 +48,43 @@ const Tasks: React.FC = () => {
     { value: 'high', label: 'Высокий', color: '#dc3545' },
   ];
 
-  const categories = ['Работа', 'Личное', 'Здоровье', 'Обучение', 'Финансы', 'Другое'];
-
   useEffect(() => {
+    console.log('Tasks component mounted');
     fetchGoals();
-    fetchTasks();
   }, []);
 
   const fetchGoals = async () => {
     try {
+      console.log('Fetching goals...');
+      setError(null);
       const response = await apiService.getGoals();
+      console.log('Goals fetched:', response);
       setGoals(response);
+      await fetchTasks(response);
     } catch (error) {
       console.error('Error fetching goals:', error);
+      setError('Ошибка загрузки целей');
+      setLoading(false);
     }
   };
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (goalsList: Goal[] = goals) => {
     try {
-      // Получаем задачи для всех целей
+      console.log('Fetching tasks for goals:', goalsList);
       const allTasks: Task[] = [];
-      for (const goal of goals) {
-        const goalTasks = await apiService.getTasks(goal.id);
-        allTasks.push(...goalTasks);
+      for (const goal of goalsList) {
+        try {
+          const goalTasks = await apiService.getTasks(goal.id);
+          allTasks.push(...goalTasks);
+        } catch (error) {
+          console.error(`Error fetching tasks for goal ${goal.id}:`, error);
+        }
       }
+      console.log('Tasks fetched:', allTasks);
       setTasks(allTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      setError('Ошибка загрузки задач');
     } finally {
       setLoading(false);
     }
@@ -94,10 +94,11 @@ const Tasks: React.FC = () => {
     e.preventDefault();
     
     try {
+      // Map UI field dueDate -> backend DTO field deadline; drop unknown keys
+      const { dueDate, ...restGoal } = goalForm as { [k: string]: any };
       const goalData = {
-        ...goalForm,
-        tags: goalForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        userId: user?.id,
+        ...restGoal,
+        ...(dueDate ? { deadline: dueDate } : {}),
       };
 
       await apiService.createGoal(goalData);
@@ -106,14 +107,13 @@ const Tasks: React.FC = () => {
         title: '',
         description: '',
         priority: 'medium',
-        category: '',
         dueDate: '',
-        tags: '',
       });
       setShowGoalForm(false);
       fetchGoals();
     } catch (error) {
       console.error('Error creating goal:', error);
+      setError('Ошибка создания цели');
     }
   };
 
@@ -121,31 +121,26 @@ const Tasks: React.FC = () => {
     e.preventDefault();
     
     try {
-      const taskData = {
-        ...taskForm,
-        tags: taskForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        userId: user?.id,
-      };
-
-      await apiService.createTask(taskForm.goalId, taskData);
+      // goalId must come from URL param, not body; drop it from payload
+      const { goalId, ...taskPayload } = taskForm as { [k: string]: any };
+      await apiService.createTask(goalId, taskPayload);
       
       setTaskForm({
         title: '',
         description: '',
         priority: 'medium',
         dueDate: '',
-        estimatedTime: 60,
         goalId: '',
-        tags: '',
       });
       setShowTaskForm(false);
       fetchTasks();
     } catch (error) {
       console.error('Error creating task:', error);
+      setError('Ошибка создания задачи');
     }
   };
 
-  const handleInputChange = (form: 'goal' | 'task', field: string, value: string | number) => {
+  const handleInputChange = (form: 'goal' | 'task', field: string, value: string) => {
     if (form === 'goal') {
       setGoalForm(prev => ({ ...prev, [field]: value }));
     } else {
@@ -164,7 +159,18 @@ const Tasks: React.FC = () => {
       fetchTasks();
     } catch (error) {
       console.error('Error updating task status:', error);
+      setError('Ошибка обновления задачи');
     }
+  };
+
+  const toggleGoalExpansion = (goalId: string) => {
+    const newExpanded = new Set(expandedGoals);
+    if (newExpanded.has(goalId)) {
+      newExpanded.delete(goalId);
+    } else {
+      newExpanded.add(goalId);
+    }
+    setExpandedGoals(newExpanded);
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -176,12 +182,6 @@ const Tasks: React.FC = () => {
     });
   };
 
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}ч ${mins}м` : `${mins}м`;
-  };
-
   const getPriorityColor = (priority: string) => {
     return priorities.find(p => p.value === priority)?.color || '#6c757d';
   };
@@ -190,18 +190,25 @@ const Tasks: React.FC = () => {
     return tasks.filter(task => task.goalId === goalId);
   };
 
-  const getTasksForDate = (date: Date) => {
-    return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate);
-      return taskDate.toDateString() === date.toDateString();
-    });
-  };
+  console.log('Tasks component rendering, loading:', loading, 'error:', error, 'goals count:', goals.length, 'tasks count:', tasks.length);
 
   if (loading) {
     return (
       <div className="tasks">
         <div className="tasks__loading">Загрузка целей и задач...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="tasks">
+        <div className="tasks__error">
+          <p>{error}</p>
+          <button onClick={fetchGoals} className="btn btn--primary">
+            Попробовать снова
+          </button>
+        </div>
       </div>
     );
   }
@@ -226,210 +233,103 @@ const Tasks: React.FC = () => {
         </div>
       </div>
 
-      <div className="tasks__view-controls">
-        <button 
-          className={`view-btn ${viewMode === 'goals' ? 'active' : ''}`}
-          onClick={() => setViewMode('goals')}
-        >
-          Цели
-        </button>
-        <button 
-          className={`view-btn ${viewMode === 'kanban' ? 'active' : ''}`}
-          onClick={() => setViewMode('kanban')}
-        >
-          Канбан
-        </button>
-        <button 
-          className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
-          onClick={() => setViewMode('calendar')}
-        >
-          Календарь
-        </button>
-      </div>
-
       <div className="tasks__content">
-        {viewMode === 'goals' && (
-          <div className="goals-view">
-            <div className="goals-grid">
-              {goals.map((goal) => (
-                <div key={goal.id} className="goal-card">
-                  <div className="goal-card__header">
-                    <div className="goal-card__priority" style={{ backgroundColor: getPriorityColor(goal.priority) }}>
+        <div className="goals-list">
+          {goals.length === 0 ? (
+            <div className="no-goals">
+              <p>Целей пока нет. Создайте первую цель!</p>
+              <button 
+                className="btn btn--primary"
+                onClick={() => setShowGoalForm(true)}
+              >
+                Создать цель
+              </button>
+            </div>
+          ) : (
+            goals.map((goal) => (
+              <div key={goal.id} className="goal-item">
+                <div className="goal-header" onClick={() => toggleGoalExpansion(goal.id)}>
+                  <div className="goal-info">
+                    <div className="goal-title">{goal.title}</div>
+                    <div className="goal-priority" style={{ backgroundColor: getPriorityColor(goal.priority) }}>
                       {priorities.find(p => p.value === goal.priority)?.label}
                     </div>
-                    <div className="goal-card__status">
-                      {goal.status === 'in_progress' ? '🔄' : 
-                       goal.status === 'completed' ? '✅' : 
-                       goal.status === 'cancelled' ? '❌' : '⏸️'}
-                    </div>
                   </div>
-
-                  <div className="goal-card__title">{goal.title}</div>
-                  <div className="goal-card__description">{goal.description}</div>
-                  
-                  <div className="goal-card__category">
-                    📂 {'Категория'}
+                  <div className="goal-status">
+                    {goal.status === 'in_progress' ? '🔄' : 
+                     goal.status === 'completed' ? '✅' : 
+                     goal.status === 'cancelled' ? '❌' : '⏸️'}
                   </div>
-
-                  <div className="goal-card__progress">
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill" 
-                        style={{ width: `${goal.progress}%` }}
-                      ></div>
-                    </div>
-                    <span className="progress-text">{goal.progress}%</span>
+                  <div className="goal-toggle">
+                    {expandedGoals.has(goal.id) ? '▼' : '▶'}
                   </div>
+                </div>
 
-                  {goal.deadline && (
-                    <div className="goal-card__due-date">
-                      📅 {formatDate(goal.deadline)}
+                <div className="goal-description">{goal.description}</div>
+                
+                {goal.deadline && (
+                  <div className="goal-deadline">
+                    📅 Срок: {formatDate(goal.deadline)}
+                  </div>
+                )}
+
+                <div className="goal-progress">
+                  <div className="progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${goal.progress}%` }}
+                    ></div>
+                  </div>
+                  <span className="progress-text">{goal.progress}%</span>
+                </div>
+
+                {expandedGoals.has(goal.id) && (
+                  <div className="goal-tasks">
+                    <div className="tasks-header">
+                      <h4>Задачи ({getTasksForGoal(goal.id).length})</h4>
+                      <button 
+                        className="btn btn--small"
+                        onClick={() => {
+                          setTaskForm(prev => ({ ...prev, goalId: goal.id }));
+                          setShowTaskForm(true);
+                        }}
+                      >
+                        Добавить задачу
+                      </button>
                     </div>
-                  )}
-
-                  {goal.tags && goal.tags.length > 0 && (
-                    <div className="goal-card__tags">
-                      {goal.tags.map(tag => (
-                        <span key={tag} className="tag">{tag}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="goal-card__tasks">
-                    <h4>Задачи ({getTasksForGoal(goal.id).length})</h4>
+                    
                     {getTasksForGoal(goal.id).map(task => (
-                      <div key={task.id} className="mini-task">
-                        <input
-                          type="checkbox"
-                          checked={task.status === 'done'}
-                          onChange={(e) => updateTaskStatus(
-                            task.id, 
-                            e.target.checked ? 'done' : 'todo'
-                          )}
-                        />
-                        <span className={task.status === 'done' ? 'completed' : ''}>
-                          {task.title}
-                        </span>
+                      <div key={task.id} className="task-item">
+                        <div className="task-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={task.status === 'done'}
+                            onChange={(e) => updateTaskStatus(
+                              task.id, 
+                              e.target.checked ? 'done' : 'todo'
+                            )}
+                          />
+                        </div>
+                        <div className="task-content">
+                          <div className="task-title">{task.title}</div>
+                          <div className="task-description">{task.description}</div>
+                          <div className="task-details">
+                            <span className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                              {priorities.find(p => p.value === task.priority)?.label}
+                            </span>
+                            {task.dueDate && (
+                              <span className="task-due">📅 {formatDate(task.dueDate)}</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-
-                  <div className="goal-card__actions">
-                    <button 
-                      className="btn btn--small"
-                      onClick={() => {
-                        setTaskForm(prev => ({ ...prev, goalId: goal.id }));
-                        setShowTaskForm(true);
-                      }}
-                    >
-                      Добавить задачу
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {viewMode === 'kanban' && (
-          <div className="kanban-view">
-            <div className="kanban-columns">
-              <div className="kanban-column">
-                <h3>К выполнению</h3>
-                {tasks.filter(t => t.status === 'todo').map(task => (
-                  <div key={task.id} className="kanban-task">
-                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}></div>
-                    <div className="task-title">{task.title}</div>
-                    <div className="task-goal">
-                      {goals.find(g => g.id === task.goalId)?.title}
-                    </div>
-                    <div className="task-due">{formatDate(task.dueDate)}</div>
-                  </div>
-                ))}
+                )}
               </div>
-
-              <div className="kanban-column">
-                <h3>В работе</h3>
-                {tasks.filter(t => t.status === 'in_progress').map(task => (
-                  <div key={task.id} className="kanban-task">
-                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}></div>
-                    <div className="task-title">{task.title}</div>
-                    <div className="task-goal">
-                      {goals.find(g => g.id === task.goalId)?.title}
-                    </div>
-                    <div className="task-due">{formatDate(task.dueDate)}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="kanban-column">
-                <h3>Завершено</h3>
-                {tasks.filter(t => t.status === 'done').map(task => (
-                  <div key={task.id} className="kanban-task completed">
-                    <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}></div>
-                    <div className="task-title">{task.title}</div>
-                    <div className="task-goal">
-                      {goals.find(g => g.id === task.goalId)?.title}
-                    </div>
-                    <div className="task-time">
-                      {formatTime(task.estimatedHours * 60)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {viewMode === 'calendar' && (
-          <div className="calendar-view">
-            <div className="calendar-header">
-              <button 
-                className="calendar-nav"
-                onClick={() => {
-                  const newDate = new Date(selectedDate);
-                  newDate.setMonth(newDate.getMonth() - 1);
-                  setSelectedDate(newDate);
-                }}
-              >
-                ←
-              </button>
-              <h3>
-                {selectedDate.toLocaleDateString('ru-RU', { 
-                  month: 'long', 
-                  year: 'numeric' 
-                })}
-              </h3>
-              <button 
-                className="calendar-nav"
-                onClick={() => {
-                  const newDate = new Date(selectedDate);
-                  newDate.setMonth(newDate.getMonth() + 1);
-                  setSelectedDate(newDate);
-                }}
-              >
-                →
-              </button>
-            </div>
-
-            <div className="calendar-tasks">
-              {getTasksForDate(selectedDate).map(task => (
-                <div key={task.id} className="calendar-task">
-                  <div className="task-priority" style={{ backgroundColor: getPriorityColor(task.priority) }}></div>
-                  <div className="task-info">
-                    <div className="task-title">{task.title}</div>
-                    <div className="task-goal">
-                      {goals.find(g => g.id === task.goalId)?.title}
-                    </div>
-                    <div className="task-time">
-                      {formatTime(task.estimatedHours * 60)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {/* Форма создания цели */}
@@ -482,39 +382,11 @@ const Tasks: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Категория</label>
-                  <select
-                    value={goalForm.category}
-                    onChange={(e) => handleInputChange('goal', 'category', e.target.value)}
-                    required
-                  >
-                    <option value="">Выберите категорию</option>
-                    {categories.map(category => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
                   <label>Срок выполнения</label>
                   <input
                     type="date"
                     value={goalForm.dueDate}
                     onChange={(e) => handleInputChange('goal', 'dueDate', e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Теги</label>
-                  <input
-                    type="text"
-                    value={goalForm.tags}
-                    onChange={(e) => handleInputChange('goal', 'tags', e.target.value)}
-                    placeholder="тег1, тег2, тег3"
                   />
                 </div>
               </div>
@@ -601,36 +473,13 @@ const Tasks: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Срок выполнения</label>
-                  <input
-                    type="date"
-                    value={taskForm.dueDate}
-                    onChange={(e) => handleInputChange('task', 'dueDate', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Оценка времени (минуты)</label>
-                  <input
-                    type="number"
-                    value={taskForm.estimatedTime}
-                    onChange={(e) => handleInputChange('task', 'estimatedTime', parseInt(e.target.value))}
-                    min="15"
-                    step="15"
-                  />
-                </div>
-              </div>
-
               <div className="form-group">
-                <label>Теги</label>
+                <label>Срок выполнения</label>
                 <input
-                  type="text"
-                  value={taskForm.tags}
-                  onChange={(e) => handleInputChange('task', 'tags', e.target.value)}
-                  placeholder="тег1, тег2, тег3"
+                  type="date"
+                  value={taskForm.dueDate}
+                  onChange={(e) => handleInputChange('task', 'dueDate', e.target.value)}
+                  required
                 />
               </div>
 

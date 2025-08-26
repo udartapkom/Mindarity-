@@ -8,11 +8,12 @@ import { Event } from '../events/entities/event.entity';
 import { Goal } from '../goals/entities/goal.entity';
 import { Task } from '../goals/entities/task.entity';
 import { File } from '../files/entities/file.entity';
+import { FailedLoginAttempt } from './entities/failed-login.entity';
 
 @Module({
   imports: [
     TerminusModule,
-    TypeOrmModule.forFeature([User, Event, Goal, Task, File]),
+    TypeOrmModule.forFeature([User, Event, Goal, Task, File, FailedLoginAttempt]),
   ],
   controllers: [MonitoringController],
   providers: [MonitoringService],

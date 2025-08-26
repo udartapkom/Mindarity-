@@ -5,6 +5,7 @@ import { FilesService } from './files.service';
 import { FilesController } from './files.controller';
 import { File } from './entities/file.entity';
 import { ConfigModule } from '@nestjs/config';
+import { BigDataModule } from '../bigdata/bigdata.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ConfigModule } from '@nestjs/config';
       },
     }),
     ConfigModule,
+    BigDataModule,
   ],
   controllers: [FilesController],
   providers: [FilesService],

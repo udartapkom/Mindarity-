@@ -16,16 +16,15 @@ interface DashboardStats {
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('week');
 
   useEffect(() => {
     fetchDashboardStats();
-  }, [selectedPeriod]);
+  }, []);
 
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const stats = await apiService.getDashboardStats(selectedPeriod);
+      const stats = await apiService.getDashboardStats('week');
       setStats(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -36,13 +35,15 @@ const Dashboard: React.FC = () => {
 
   const getCompletionRate = () => {
     if (!stats) return 0;
+    if (stats.totalTasks === 0) return 0;
     return Math.round((stats.completedTasks / stats.totalTasks) * 100);
   };
 
-  const getAverageGoalProgress = () => {
-    if (!stats) return 0;
-    const total = stats.goalProgress.reduce((sum, goal) => sum + goal.progress, 0);
-    return Math.round(total / stats.goalProgress.length);
+  const getTopEmotions = () => {
+    if (!stats) return [];
+    return Object.entries(stats.moodDistribution)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
   };
 
   if (loading) {
@@ -65,177 +66,93 @@ const Dashboard: React.FC = () => {
     <div className="dashboard">
       <div className="dashboard__header">
         <h1>Дашборд</h1>
-        <div className="period-selector">
-          <button 
-            className={`period-btn ${selectedPeriod === 'week' ? 'active' : ''}`}
-            onClick={() => setSelectedPeriod('week')}
-          >
-            Неделя
-          </button>
-          <button 
-            className={`period-btn ${selectedPeriod === 'month' ? 'active' : ''}`}
-            onClick={() => setSelectedPeriod('month')}
-          >
-            Месяц
-          </button>
-          <button 
-            className={`period-btn ${selectedPeriod === 'year' ? 'active' : ''}`}
-            onClick={() => setSelectedPeriod('year')}
-          >
-            Год
-          </button>
-        </div>
       </div>
 
-      <div className="dashboard__grid">
+      <div className="dashboard__content">
         {/* Основные метрики */}
-        <div className="metrics-row">
-          <div className="metric-card">
-            <div className="metric-icon">📊</div>
-            <div className="metric-content">
+        <div className="metrics-section">
+          <h3>Основная статистика</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
               <div className="metric-value">{stats.totalEvents}</div>
-              <div className="metric-label">Всего событий</div>
+              <div className="metric-label">Записей</div>
             </div>
-          </div>
 
-          <div className="metric-card">
-            <div className="metric-icon">🎯</div>
-            <div className="metric-content">
+            <div className="metric-item">
               <div className="metric-value">{stats.totalGoals}</div>
-              <div className="metric-label">Активных целей</div>
+              <div className="metric-label">Целей</div>
             </div>
-          </div>
 
-          <div className="metric-card">
-            <div className="metric-icon">✅</div>
-            <div className="metric-content">
+            <div className="metric-item">
               <div className="metric-value">{getCompletionRate()}%</div>
               <div className="metric-label">Выполнение задач</div>
             </div>
-          </div>
 
-          <div className="metric-card">
-            <div className="metric-icon">⏰</div>
-            <div className="metric-content">
+            <div className="metric-item">
               <div className="metric-value">{stats.upcomingDeadlines}</div>
               <div className="metric-label">Срочные задачи</div>
             </div>
           </div>
         </div>
 
-        {/* Графики */}
-        <div className="charts-row">
-          <div className="chart-card">
-            <h3>Распределение настроений</h3>
-            <div className="chart-container">
-              <div className="mood-chart">
-                {Object.entries(stats.moodDistribution).map(([mood, count]) => (
-                  <div key={mood} className="mood-item">
-                    <div className="mood-emoji">{mood}</div>
-                    <div className="mood-bar">
-                      <div 
-                        className="mood-fill" 
-                        style={{ 
-                          width: `${(count / Math.max(...Object.values(stats.moodDistribution))) * 100}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="mood-count">{count}</div>
-                  </div>
-                ))}
+        {/* Эмоциональные реакции */}
+        <div className="emotions-section">
+          <h3>Часто используемые эмоции</h3>
+          <div className="emotions-chart">
+            {getTopEmotions().map(([emotion, count]) => (
+              <div key={emotion} className="emotion-item">
+                <div className="emotion-emoji">{emotion}</div>
+                <div className="emotion-bar">
+                  <div 
+                    className="emotion-fill" 
+                    style={{ 
+                      width: `${Object.values(stats.moodDistribution).length > 0 
+                        ? (count / Math.max(...Object.values(stats.moodDistribution))) * 100 
+                        : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                <div className="emotion-count">{count}</div>
               </div>
-            </div>
-          </div>
-
-          <div className="chart-card">
-            <h3>Прогресс целей</h3>
-            <div className="chart-container">
-              <div className="goals-progress">
-                {stats.goalProgress.map((goal, index) => (
-                  <div key={index} className="goal-progress-item">
-                    <div className="goal-name">{goal.name}</div>
-                    <div className="goal-progress-bar">
-                      <div 
-                        className="goal-progress-fill" 
-                        style={{ width: `${goal.progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="goal-progress-value">{goal.progress}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Дополнительная статистика */}
-        <div className="stats-row">
-          <div className="stats-card">
-            <h3>Общая статистика</h3>
-            <div className="stats-grid">
-              <div className="stat-item">
-                <div className="stat-label">Средний прогресс целей</div>
-                <div className="stat-value">{getAverageGoalProgress()}%</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">Завершенных задач</div>
-                <div className="stat-value">{stats.completedTasks}</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">Активных задач</div>
-                <div className="stat-value">{stats.totalTasks - stats.completedTasks}</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-label">Период</div>
-                <div className="stat-value">
-                  {selectedPeriod === 'week' ? 'Неделя' : 
-                   selectedPeriod === 'month' ? 'Месяц' : 'Год'}
+        {/* Прогресс целей */}
+        <div className="goals-section">
+          <h3>Прогресс целей</h3>
+          <div className="goals-progress">
+            {stats.goalProgress.slice(0, 5).map((goal, index) => (
+              <div key={index} className="goal-progress-item">
+                <div className="goal-name">{goal.name}</div>
+                <div className="goal-progress-bar">
+                  <div 
+                    className="goal-progress-fill" 
+                    style={{ width: `${goal.progress}%` }}
+                  ></div>
                 </div>
+                <div className="goal-progress-value">{goal.progress}%</div>
               </div>
-            </div>
-          </div>
-
-          <div className="stats-card">
-            <h3>Последняя активность</h3>
-            <div className="activity-list">
-              {stats.recentActivity.map((activity, index) => (
-                <div key={index} className="activity-item">
-                  <div className="activity-icon">
-                    {activity.type === 'event' ? '📝' : 
-                     activity.type === 'task' ? '✅' : '🎯'}
-                  </div>
-                  <div className="activity-content">
-                    <div className="activity-title">{activity.title}</div>
-                    <div className="activity-time">{activity.date}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Быстрые действия */}
-        <div className="actions-row">
-          <div className="actions-card">
-            <h3>Быстрые действия</h3>
-            <div className="actions-grid">
-              <button className="action-btn">
-                <span className="action-icon">📝</span>
-                <span className="action-text">Новое событие</span>
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">🎯</span>
-                <span className="action-text">Новая цель</span>
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">✅</span>
-                <span className="action-text">Новая задача</span>
-              </button>
-              <button className="action-btn">
-                <span className="action-icon">📊</span>
-                <span className="action-text">Подробная статистика</span>
-              </button>
-            </div>
+        {/* Последняя активность */}
+        <div className="activity-section">
+          <h3>Последняя активность</h3>
+          <div className="activity-list">
+            {stats.recentActivity.slice(0, 5).map((activity, index) => (
+              <div key={index} className="activity-item">
+                <div className="activity-icon">
+                  {activity.type === 'event' ? '📝' : 
+                   activity.type === 'task' ? '✅' : '🎯'}
+                </div>
+                <div className="activity-content">
+                  <div className="activity-title">{activity.title}</div>
+                  <div className="activity-time">{activity.date}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

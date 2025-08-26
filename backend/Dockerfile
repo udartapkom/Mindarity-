@@ -4,14 +4,18 @@ FROM node:20-alpine
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json и package-lock.json
-COPY package*.json ./
+# Копируем исходный код
+COPY . .
 
 # Устанавливаем зависимости
 RUN npm ci
 
-# Копируем исходный код
-COPY . .
+# Добавляем переменную окружения для принудительной пересборки
+ARG BUILD_DATE
+ENV BUILD_DATE=${BUILD_DATE}
+
+# Добавляем временную метку для принудительной пересборки
+RUN echo "Build timestamp: $(date)" > /app/build-timestamp.txt
 
 # Собираем приложение
 RUN npm run build

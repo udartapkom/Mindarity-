@@ -1,132 +1,107 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
+
+export interface CaptchaChallenge {
+  id: string;
+  question: string;
+  answer: number;
+  expiresAt: Date;
+}
 
 @Injectable()
 export class CaptchaService {
-  private readonly logger = new Logger(CaptchaService.name);
+  private challenges: Map<string, CaptchaChallenge> = new Map();
+  private readonly CHALLENGE_EXPIRY_MINUTES = 5;
 
-  constructor(private configService: ConfigService) {}
-
-  /**
-   * Проверяет Google reCAPTCHA токен
-   */
-  async verifyGoogleRecaptcha(token: string, remoteIp?: string): Promise<boolean> {
-    const secretKey = this.configService.get('RECAPTCHA_SECRET_KEY');
+  generateChallenge(): CaptchaChallenge {
+    const operators = ['+', '-', '*'];
+    const operator = operators[Math.floor(Math.random() * operators.length)];
     
-    if (!secretKey) {
-      this.logger.warn('Google reCAPTCHA secret key not configured');
-      return false;
-    }
-
-    try {
-      const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          secret: secretKey,
-          response: token,
-          remoteip: remoteIp || '',
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        this.logger.log('Google reCAPTCHA verification successful');
-        return true;
-      } else {
-        this.logger.warn('Google reCAPTCHA verification failed:', result['error-codes']);
-        return false;
-      }
-    } catch (error) {
-      this.logger.error('Error verifying Google reCAPTCHA:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Проверяет hCaptcha токен
-   */
-  async verifyHCaptcha(token: string, remoteIp?: string): Promise<boolean> {
-    const secretKey = this.configService.get('HCAPTCHA_SECRET_KEY');
+    let num1: number, num2: number, answer: number;
     
-    if (!secretKey) {
-      this.logger.warn('hCaptcha secret key not configured');
-      return false;
-    }
-
-    try {
-      const response = await fetch('https://hcaptcha.com/siteverify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          secret: secretKey,
-          response: token,
-          remoteip: remoteIp || '',
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        this.logger.log('hCaptcha verification successful');
-        return true;
-      } else {
-        this.logger.warn('hCaptcha verification failed:', result['error-codes']);
-        return false;
-      }
-    } catch (error) {
-      this.logger.error('Error verifying hCaptcha:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Проверяет CAPTCHA токен (автоматически определяет тип)
-   */
-  async verifyCaptcha(token: string, type: 'google' | 'hcaptcha' = 'google', remoteIp?: string): Promise<boolean> {
-    switch (type) {
-      case 'google':
-        return this.verifyGoogleRecaptcha(token, remoteIp);
-      case 'hcaptcha':
-        return this.verifyHCaptcha(token, remoteIp);
+    switch (operator) {
+      case '+':
+        num1 = Math.floor(Math.random() * 20) + 1;
+        num2 = Math.floor(Math.random() * 20) + 1;
+        answer = num1 + num2;
+        break;
+      case '-':
+        num1 = Math.floor(Math.random() * 30) + 10;
+        num2 = Math.floor(Math.random() * num1);
+        answer = num1 - num2;
+        break;
+      case '*':
+        num1 = Math.floor(Math.random() * 12) + 1;
+        num2 = Math.floor(Math.random() * 12) + 1;
+        answer = num1 * num2;
+        break;
       default:
-        this.logger.warn(`Unknown CAPTCHA type: ${type}`);
-        return false;
+        num1 = Math.floor(Math.random() * 20) + 1;
+        num2 = Math.floor(Math.random() * 20) + 1;
+        answer = num1 + num2;
     }
-  }
-
-  /**
-   * Проверяет, что CAPTCHA настроена
-   */
-  isCaptchaConfigured(type: 'google' | 'hcaptcha' = 'google'): boolean {
-    switch (type) {
-      case 'google':
-        return !!this.configService.get('RECAPTCHA_SECRET_KEY');
-      case 'hcaptcha':
-        return !!this.configService.get('HCAPTCHA_SECRET_KEY');
-      default:
-        return false;
-    }
-  }
-
-  /**
-   * Получает настройки CAPTCHA для фронтенда
-   */
-  getCaptchaConfig() {
-    return {
-      google: {
-        enabled: this.isCaptchaConfigured('google'),
-        siteKey: this.configService.get('RECAPTCHA_SITE_KEY'),
-      },
-      hcaptcha: {
-        enabled: this.isCaptchaConfigured('hcaptcha'),
-        siteKey: this.configService.get('HCAPTCHA_SITE_KEY'),
-      },
+    
+    const question = `${num1} ${operator} ${num2}`;
+    const id = this.generateId();
+    const expiresAt = new Date(Date.now() + this.CHALLENGE_EXPIRY_MINUTES * 60 * 1000);
+    
+    const challenge: CaptchaChallenge = {
+      id,
+      question,
+      answer,
+      expiresAt,
     };
+    
+    this.challenges.set(id, challenge);
+    
+    // Очищаем истекшие вызовы
+    this.cleanupExpiredChallenges();
+    
+    return challenge;
+  }
+
+  verifyChallenge(challengeId: string, userAnswer: number): boolean {
+    const challenge = this.challenges.get(challengeId);
+    
+    if (!challenge) {
+      return false;
+    }
+    
+    // Удаляем использованный вызов
+    this.challenges.delete(challengeId);
+    
+    // Проверяем срок действия
+    if (new Date() > challenge.expiresAt) {
+      return false;
+    }
+    
+    return challenge.answer === userAnswer;
+  }
+
+  private generateId(): string {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  private cleanupExpiredChallenges(): void {
+    const now = new Date();
+    for (const [id, challenge] of this.challenges.entries()) {
+      if (now > challenge.expiresAt) {
+        this.challenges.delete(id);
+      }
+    }
+  }
+
+  // Методы для совместимости с существующим кодом
+  isCaptchaConfigured(type: 'google' | 'hcaptcha'): boolean {
+    return false; // Локальная CAPTCHA всегда доступна
+  }
+
+  async verifyCaptcha(token: string, type: 'google' | 'hcaptcha'): Promise<boolean> {
+    // Для локальной CAPTCHA используем формат: challengeId:answer
+    const [challengeId, answer] = token.split(':');
+    if (!challengeId || !answer) {
+      return false;
+    }
+    
+    return this.verifyChallenge(challengeId, parseInt(answer, 10));
   }
 }

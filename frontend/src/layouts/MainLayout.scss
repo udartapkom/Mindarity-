@@ -5,6 +5,7 @@
   @include flex-row;
   min-height: 100vh;
   background: #f8f9fa;
+  position: relative;
   
   .main-content {
     flex: 1;
@@ -14,6 +15,17 @@
       padding: $spacing-lg;
       min-height: calc(100vh - 80px); // Высота минус header
     }
+  }
+  
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    display: none;
   }
 }
 
@@ -29,8 +41,12 @@
         padding: $spacing-md;
       }
     }
+    
+    .sidebar-overlay {
+      display: block;
     }
   }
+}
   
 @media (max-width: $breakpoint-md) {
   .main-layout {

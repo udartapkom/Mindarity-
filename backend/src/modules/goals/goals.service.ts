@@ -143,6 +143,7 @@ export class GoalsService {
     const task = this.tasksRepository.create({
       ...createTaskDto,
       goalId,
+      userId,
     });
 
     return this.tasksRepository.save(task);
@@ -242,37 +243,77 @@ export class GoalsService {
 
   // Statistics
   async getGoalsStatistics(userId: string): Promise<{
-    total: number;
-    completed: number;
-    inProgress: number;
-    overdue: number;
+    totalGoals: number;
+    completedGoals: number;
+    inProgressGoals: number;
+    overdueGoals: number;
     averageProgress: number;
+    totalTasks: number;
+    completedTasks: number;
+    upcomingDeadlines: number;
+    goalProgress: Array<{ name: string; progress: number }>;
   }> {
     const goals = await this.findAllGoals(userId);
     const overdueGoals = await this.getOverdueGoals(userId);
+    
+    // Получаем все задачи пользователя
+    const tasks = await this.tasksRepository.find({
+      where: { userId },
+      relations: ['goal'],
+    });
 
-    const total = goals.length;
-    const completed = goals.filter(
+    const totalGoals = goals.length;
+    const completedGoals = goals.filter(
       (g) => g.status === GoalStatus.COMPLETED,
     ).length;
-    const inProgress = goals.filter(
+    const inProgressGoals = goals.filter(
       (g) => g.status === GoalStatus.IN_PROGRESS,
     ).length;
-    const overdue = overdueGoals.length;
+    const overdueGoalsCount = overdueGoals.length;
 
     const averageProgress =
-      total > 0
+      totalGoals > 0
         ? Math.round(
-            goals.reduce((sum, goal) => sum + goal.progress, 0) / total,
+            goals.reduce((sum, goal) => sum + goal.progress, 0) / totalGoals,
           )
         : 0;
 
+    // Статистика по задачам
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(
+      (t) => t.status === TaskStatus.DONE,
+    ).length;
+
+    // Срочные задачи (срок через 7 дней или меньше)
+    const weekFromNow = new Date();
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+    const upcomingDeadlines = tasks.filter(
+      (t) => 
+        t.status === TaskStatus.IN_PROGRESS && 
+        t.dueDate && 
+        new Date(t.dueDate) <= weekFromNow &&
+        new Date(t.dueDate) >= new Date()
+    ).length;
+
+    // Прогресс целей для отображения
+    const goalProgress = goals
+      .filter(g => g.status === GoalStatus.IN_PROGRESS)
+      .slice(0, 5)
+      .map(goal => ({
+        name: goal.title,
+        progress: goal.progress
+      }));
+
     return {
-      total,
-      completed,
-      inProgress,
-      overdue,
+      totalGoals,
+      completedGoals,
+      inProgressGoals,
+      overdueGoals: overdueGoalsCount,
       averageProgress,
+      totalTasks,
+      completedTasks,
+      upcomingDeadlines,
+      goalProgress,
     };
   }
 }
