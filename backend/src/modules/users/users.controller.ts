@@ -14,6 +14,8 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import {
   ApiTags,
   ApiOperation,
@@ -22,10 +24,12 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { SessionsService } from './sessions.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from './entities/user.entity';
+import { SessionResponseDto } from './dto/session.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -36,7 +40,10 @@ import { UserRole } from './entities/user.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly sessionsService: SessionsService,
+  ) {}
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -71,6 +78,18 @@ export class UsersController {
   })
   async getProfile(@Request() req): Promise<User> {
     return this.usersService.findOne(req.user.id);
+  }
+
+  @Get('sessions')
+  @ApiOperation({ summary: 'Get current user sessions' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sessions retrieved successfully',
+    type: [SessionResponseDto],
+  })
+  async getSessions(@Request() req): Promise<SessionResponseDto[]> {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    return this.sessionsService.getUserSessions(req.user.id, token);
   }
 
   @Get(':id')
@@ -145,7 +164,16 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ): Promise<User> {
-    return this.usersService.updateAvatar(req.user.id, file.path);
+    console.log('uploadAvatar called with file:', file);
+    console.log('File path:', file?.path);
+    console.log('File buffer:', file?.buffer);
+    console.log('File originalname:', file?.originalname);
+    
+    if (file) {
+      return this.usersService.updateAvatar(req.user.id, file);
+    } else {
+      throw new Error('No file uploaded');
+    }
   }
 
   @Post(':id/status')
@@ -181,7 +209,7 @@ export class UsersController {
   @Post('profile/enable-2fa')
   @ApiOperation({ summary: 'Enable two-factor authentication' })
   @ApiResponse({ status: 200, description: '2FA enabled successfully' })
-  async enableTwoFactor(@Request() req): Promise<{ secret: string; qrCode: string }> {
+  async enableTwoFactor(@Request() req): Promise<{ code: string; expiresAt: Date }> {
     return this.usersService.enableTwoFactor(req.user.id);
   }
 
@@ -201,6 +229,13 @@ export class UsersController {
   ): Promise<{ isValid: boolean }> {
     const isValid = await this.usersService.verifyTwoFactorToken(req.user.id, token);
     return { isValid };
+  }
+
+  @Get('profile/current-otp')
+  @ApiOperation({ summary: 'Get current OTP code for 2FA' })
+  @ApiResponse({ status: 200, description: 'Current OTP code retrieved' })
+  async getCurrentOTP(@Request() req): Promise<{ code: string; expiresAt: Date } | null> {
+    return this.usersService.getCurrentOTP(req.user.id);
   }
 
   @Post('profile/generate-backup-codes')
@@ -228,5 +263,47 @@ export class UsersController {
     @Body('newPassword') newPassword: string,
   ): Promise<void> {
     return this.usersService.resetPassword(token, newPassword);
+  }
+
+  // Session management endpoints
+  // Place static routes before parameterized ones to avoid conflicts
+  @Delete('sessions/all')
+  @ApiOperation({ summary: 'Terminate all current user sessions' })
+  @ApiResponse({ status: 204, description: 'All current user sessions terminated successfully' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async terminateAllCurrentUserSessions(@Request() req): Promise<void> {
+    return this.sessionsService.terminateAllUserSessions(req.user.id);
+  }
+
+  @Delete('sessions')
+  @ApiOperation({ summary: 'Terminate all other sessions' })
+  @ApiResponse({ status: 204, description: 'All other sessions terminated successfully' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async terminateAllOtherSessions(@Request() req): Promise<void> {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      throw new Error('No authorization token found');
+    }
+    return this.sessionsService.terminateAllOtherSessions(req.user.id, token);
+  }
+
+  @Delete('sessions/:sessionId')
+  @ApiOperation({ summary: 'Terminate specific session' })
+  @ApiResponse({ status: 204, description: 'Session terminated successfully' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async terminateSession(
+    @Param('sessionId') sessionId: string,
+    @Request() req,
+  ): Promise<void> {
+    return this.sessionsService.terminateSession(sessionId, req.user.id);
+  }
+
+  @Delete(':id/sessions')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Terminate all user sessions (admin only)' })
+  @ApiResponse({ status: 204, description: 'All user sessions terminated successfully' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async terminateUserSessions(@Param('id') userId: string): Promise<void> {
+    return this.sessionsService.terminateAllUserSessions(userId);
   }
 }

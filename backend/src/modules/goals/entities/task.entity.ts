@@ -27,6 +27,7 @@ export enum TaskPriority {
 @Entity('tasks')
 @Index(['goalId', 'status'])
 @Index(['priority', 'dueDate'])
+@Index(['userId', 'goalId'])
 export class Task {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -80,6 +81,9 @@ export class Task {
 
   @Column()
   goalId: string;
+
+  @Column()
+  userId: string;
 
   @CreateDateColumn()
   createdAt: Date;

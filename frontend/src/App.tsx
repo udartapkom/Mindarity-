@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/useAuth';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login/Login';
+import CaptchaTest from './pages/CaptchaTest';
+import TwoFactorTest from './pages/TwoFactorTest';
 import './styles/main.scss';
 
 // Компонент для защищенных маршрутов
@@ -22,6 +24,8 @@ function AppContent() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/captcha-test" element={<CaptchaTest />} />
+        <Route path="/2fa-test" element={<TwoFactorTest />} />
         <Route
           path="/*"
           element={

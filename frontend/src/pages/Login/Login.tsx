@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/useAuth';
 import { useNavigate } from 'react-router-dom';
+import Captcha from '../../components/Captcha';
+import TwoFactorAuth from '../../components/TwoFactorAuth';
 import './Login.scss';
 
 const Login: React.FC = () => {
@@ -12,22 +14,47 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  
+  // 2FA состояния
+  const [show2FA, setShow2FA] = useState(false);
+  const [userId, setUserId] = useState('');
 
-  const { login, register } = useAuth();
+  const { login, register, complete2FA } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isCaptchaVerified) {
+      setError('Пожалуйста, пройдите проверку CAPTCHA');
+      return;
+    }
+    
     setError('');
     setIsLoading(true);
 
     try {
       if (isRegister) {
         await register(username, email, password, firstName, lastName);
+        navigate('/dashboard');
       } else {
-        await login(email, password);
+        const response = await login(email, password);
+        
+        // 2FA теперь всегда требуется для всех пользователей
+        if (response.requires2FA && response.userId) {
+          setUserId(response.userId);
+          setShow2FA(true);
+          
+          // Показываем код во всплывающем окне
+          if (response.otpCode) {
+            alert(`🔐 Код для входа: ${response.otpCode}\n\nКод действителен 5 минут.`);
+          }
+        } else {
+          // Это не должно происходить, так как 2FA теперь обязательна
+          setError('Ошибка: 2FA не инициализирована');
+        }
       }
-      navigate('/dashboard');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Произошла ошибка';
       setError(errorMessage);
@@ -36,10 +63,57 @@ const Login: React.FC = () => {
     }
   };
 
+  const handle2FAVerify = async (otpCode: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Используем метод из AuthContext для завершения 2FA
+      await complete2FA(userId, otpCode);
+      
+      // После успешной 2FA принудительно переходим на дашборд
+      window.location.href = '/dashboard';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Произошла ошибка при проверке 2FA';
+      setError(errorMessage);
+      throw err; // Пробрасываем ошибку, чтобы TwoFactorAuth мог её обработать
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handle2FACancel = () => {
+    setShow2FA(false);
+    setUserId('');
+    setError('');
+  };
+
   const toggleMode = () => {
     setIsRegister(!isRegister);
     setError('');
+    setIsCaptchaVerified(false);
   };
+
+  const handleCaptchaVerify = (isValid: boolean) => {
+    setIsCaptchaVerified(isValid);
+    if (isValid) {
+      setError('');
+    }
+  };
+
+  const handleCaptchaRefresh = () => {
+    setIsCaptchaVerified(false);
+    setError('');
+  };
+
+  // Если показывается 2FA, рендерим только её
+  if (show2FA) {
+    return (
+      <TwoFactorAuth
+        onVerify={handle2FAVerify}
+        onCancel={handle2FACancel}
+      />
+    );
+  }
 
   return (
     <div className="login-page">
@@ -64,28 +138,26 @@ const Login: React.FC = () => {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="firstName">Имя</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Введите имя"
-                  />
-                </div>
+              <div className="form-group"> 
+                <label htmlFor="firstName">Имя</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Введите имя"
+                />
+              </div>
 
-                <div className="form-group">
-                  <label htmlFor="lastName">Фамилия</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Введите фамилию"
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="lastName">Фамилия</label>
+                <input
+                  type="text"
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Введите фамилию"
+                />
               </div>
             </>
           )}
@@ -114,9 +186,18 @@ const Login: React.FC = () => {
             />
           </div>
 
+          <Captcha 
+            onVerify={handleCaptchaVerify}
+            onRefresh={handleCaptchaRefresh}
+          />
+
           {error && <div className="error-message">{error}</div>}
 
-          <button type="submit" className="submit-btn" disabled={isLoading}>
+          <button 
+            type="submit" 
+            className="submit-btn" 
+            disabled={isLoading || !isCaptchaVerified}
+          >
             {isLoading ? 'Загрузка...' : (isRegister ? 'Зарегистрироваться' : 'Войти')}
           </button>
         </form>
@@ -131,4 +212,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default Login;

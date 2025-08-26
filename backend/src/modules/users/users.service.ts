@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +13,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { TwoFactorService } from '../auth/two-factor.service';
+import { MinioStorageService } from '../bigdata/minio-storage.service';
+
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -18,7 +22,10 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @Inject(forwardRef(() => TwoFactorService))
     private twoFactorService: TwoFactorService,
+    @Inject(forwardRef(() => MinioStorageService))
+    private minioStorageService: MinioStorageService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -172,10 +179,82 @@ export class UsersService {
     await this.usersRepository.update(id, { password: hashedNewPassword });
   }
 
-  async updateAvatar(id: string, avatarPath: string): Promise<User> {
+  async updateAvatar(id: string, file: Express.Multer.File): Promise<User> {
+    console.log('updateAvatar called with file:', file.originalname);
     const user = await this.findOne(id);
-    user.avatar = avatarPath;
-    return this.usersRepository.save(user);
+    
+    try {
+      // Проверяем тип файла
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        throw new BadRequestException('Invalid file type. Only images are allowed.');
+      }
+
+      // Проверяем размер файла (максимум 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        throw new BadRequestException('File too large. Maximum size is 5MB.');
+      }
+
+      // Удаляем старый аватар, если он существует
+      if (user.avatar) {
+        try {
+          // Извлекаем имя файла из URL
+          const avatarUrl = new URL(user.avatar);
+          const pathParts = avatarUrl.pathname.split('/');
+          const fileName = pathParts.slice(-2).join('/'); // avatars/userId/filename
+          
+          console.log('Deleting old avatar:', fileName);
+          await this.minioStorageService.deleteFile(fileName);
+          console.log('Old avatar deleted successfully');
+        } catch (error) {
+          console.error('Failed to delete old avatar:', error);
+          // Не прерываем процесс, если не удалось удалить старый аватар
+        }
+      }
+
+      // Генерируем уникальное имя файла
+      const path = require('path');
+      const crypto = require('crypto');
+      const fileExtension = path.extname(file.originalname);
+      const fileName = `avatars/${id}/${crypto.randomUUID()}${fileExtension}`;
+      
+      // Создаем временный файл из buffer
+      const fs = require('fs');
+      const tempDir = '/tmp'; // Используем абсолютный путь в Docker
+      const tempFilePath = path.join(tempDir, `avatar_${crypto.randomUUID()}${fileExtension}`);
+      
+      console.log('Temp file path:', tempFilePath);
+      console.log('File buffer length:', file.buffer?.length);
+      
+      // Записываем buffer во временный файл
+      fs.writeFileSync(tempFilePath, file.buffer);
+      
+      try {
+        // Загружаем файл в MinIO
+        await this.minioStorageService.uploadBuffer(
+          file.buffer,
+          fileName,
+          file.mimetype
+        );
+
+        // Получаем прямой URL для аватара (без presigned параметров)
+        const avatarUrl = this.minioStorageService.getAvatarUrl(fileName);
+
+        // Обновляем пользователя
+        user.avatar = avatarUrl;
+        return this.usersRepository.save(user);
+      } finally {
+        // Удаляем временный файл
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (error) {
+          console.error('Failed to delete temporary file:', error);
+        }
+      }
+    } catch (error) {
+      throw new BadRequestException(`Failed to upload avatar: ${error.message}`);
+    }
   }
 
   async updateLastLogin(id: string, ip: string): Promise<void> {
@@ -238,47 +317,49 @@ export class UsersService {
     // Implementation depends on token validation
   }
 
-  async enableTwoFactor(id: string): Promise<{ secret: string; qrCode: string }> {
+  async enableTwoFactor(id: string): Promise<{ code: string; expiresAt: Date }> {
     const user = await this.findOne(id);
     
-    // Генерируем новый секрет
-    const secret = this.twoFactorService.generateSecret(user.email);
+    // Генерируем OTP код для пользователя
+    const otpData = this.twoFactorService.generateOTPForUser(id);
     
-    // Проверяем валидность секрета
-    if (!this.twoFactorService.validateSecret(secret)) {
-      throw new BadRequestException('Failed to generate valid 2FA secret');
-    }
-    
-    // Генерируем QR код
-    const qrCode = await this.twoFactorService.generateQRCode(secret, user.email);
-    
-    // Сохраняем секрет в базе данных
+    // Сохраняем статус 2FA в базе данных (для совместимости)
     await this.usersRepository.update(id, {
       isTwoFactorEnabled: true,
-      twoFactorSecret: secret,
     });
     
-    return { secret, qrCode };
+    return otpData;
   }
 
   async disableTwoFactor(id: string): Promise<void> {
-    await this.usersRepository.update(id, {
-      isTwoFactorEnabled: false,
-      twoFactorSecret: null,
-    });
+    // 2FA теперь нельзя отключить - она обязательна для всех
+    throw new BadRequestException('2FA cannot be disabled - it is required for all users');
   }
 
   async verifyTwoFactorToken(id: string, token: string): Promise<boolean> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'twoFactorSecret', 'isTwoFactorEnabled'],
+      select: ['id'],
     });
 
-    if (!user || !user.isTwoFactorEnabled || !user.twoFactorSecret) {
-      throw new BadRequestException('2FA is not enabled for this user');
+    if (!user) {
+      throw new BadRequestException('User not found');
     }
 
-    return this.twoFactorService.verifyToken(token, user.twoFactorSecret);
+    return this.twoFactorService.verifyOTP(id, token);
+  }
+
+  async getCurrentOTP(id: string): Promise<{ code: string; expiresAt: Date } | null> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      select: ['id'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return this.twoFactorService.getCurrentOTP(id);
   }
 
   async generateBackupCodes(id: string): Promise<string[]> {

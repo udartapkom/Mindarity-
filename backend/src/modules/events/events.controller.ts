@@ -54,10 +54,7 @@ export class EventsController {
     @Body() createEventDto: CreateEventDto,
     @Request() req,
   ): Promise<Event> {
-    return this.eventsService.create({
-      ...createEventDto,
-      userId: req.user.id,
-    });
+    return this.eventsService.create(createEventDto, req.user.id);
   }
 
   @Get()
@@ -106,6 +103,21 @@ export class EventsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getEventsCount(@Request() req): Promise<number> {
     return this.eventsService.getEventsCount(req.user.id);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get events statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getEventsStatistics(@Request() req): Promise<{
+    totalEvents: number;
+    eventsByType: Record<string, number>;
+    recentEvents: Array<{ title: string; date: string; type: string }>;
+  }> {
+    return this.eventsService.getEventsStatistics(req.user.id);
   }
 
   @Get(':id')

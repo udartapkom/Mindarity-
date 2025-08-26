@@ -5,9 +5,11 @@ import './Sidebar.scss';
 interface SidebarProps {
   activePage: string;
   onPageChange: (page: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange, isOpen = false }) => {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -15,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <div className="user-info">
           <div className="avatar">
@@ -54,13 +56,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange }) => {
               События
             </button>
           </li>
-          <li>
+                    <li>
             <button
               className={`nav-item ${activePage === 'tasks' ? 'active' : ''}`}
               onClick={() => onPageChange('tasks')}
             >
               <span className="nav-icon">🎯</span>
               Цели и задачи
+            </button>
+          </li>
+          <li>
+            <button
+              className={`nav-item ${activePage === 'files' ? 'active' : ''}`}
+              onClick={() => onPageChange('files')}
+            >
+              <span className="nav-icon">📁</span>
+              Файлы
             </button>
           </li>
           <li>

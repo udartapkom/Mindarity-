@@ -7,6 +7,7 @@ export default () => ({
     password: process.env.DATABASE_PASSWORD || 'mindarity_password',
     database: process.env.DATABASE_NAME || 'mindarity',
     url: process.env.DATABASE_URL,
+    synchronize: process.env.TYPEORM_SYNC === 'true',
   },
   jwt: {
     secret:

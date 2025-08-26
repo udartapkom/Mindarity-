@@ -6,6 +6,7 @@ import { Event } from '../events/entities/event.entity';
 import { Goal } from '../goals/entities/goal.entity';
 import { Task } from '../goals/entities/task.entity';
 import { File } from '../files/entities/file.entity';
+import { FailedLoginAttempt } from './entities/failed-login.entity';
 import * as os from 'os';
 
 @Injectable()
@@ -23,6 +24,8 @@ export class MonitoringService {
     private tasksRepository: Repository<Task>,
     @InjectRepository(File)
     private filesRepository: Repository<File>,
+    @InjectRepository(FailedLoginAttempt)
+    private failedLoginRepository: Repository<FailedLoginAttempt>,
   ) {}
 
   async getSystemMetrics() {
@@ -188,6 +191,99 @@ export class MonitoringService {
     return externalApis;
   }
 
+  async recordFailedLogin(username: string, ipAddress: string) {
+    try {
+      let failedLogin = await this.failedLoginRepository.findOne({
+        where: { username, ipAddress }
+      });
+
+      if (!failedLogin) {
+        failedLogin = this.failedLoginRepository.create({
+          username,
+          ipAddress,
+          attempts: 0,
+          firstAttemptAt: new Date(),
+        });
+      }
+
+      failedLogin.attempts += 1;
+      failedLogin.lastAttemptAt = new Date();
+      failedLogin.blocked = failedLogin.attempts >= 3;
+
+      await this.failedLoginRepository.save(failedLogin);
+      
+      this.logger.warn(`Failed login attempt for user ${username} from IP ${ipAddress}. Total attempts: ${failedLogin.attempts}`);
+      
+      return failedLogin;
+    } catch (error) {
+      this.logger.error('Failed to record failed login attempt:', error);
+    }
+  }
+
+  async resetFailedLoginAttempts(username: string, ipAddress: string) {
+    try {
+      await this.failedLoginRepository.delete({ username, ipAddress });
+      this.logger.log(`Reset failed login attempts for user ${username} from IP ${ipAddress}`);
+    } catch (error) {
+      this.logger.error('Failed to reset failed login attempts:', error);
+    }
+  }
+
+  async deleteFailedLoginAttempts(username: string, ipAddress: string) {
+    try {
+      const result = await this.failedLoginRepository.delete({ username, ipAddress });
+      this.logger.log(`Deleted failed login attempts for user ${username} from IP ${ipAddress}`);
+      return {
+        success: true,
+        message: `Failed login attempts for user ${username} from IP ${ipAddress} have been deleted`,
+        deletedCount: result.affected || 0,
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete failed login attempts:', error);
+      throw error;
+    }
+  }
+
+  async deleteAllFailedLoginAttempts() {
+    try {
+      const result = await this.failedLoginRepository.delete({});
+      this.logger.log(`Deleted all failed login attempts`);
+      return {
+        success: true,
+        message: 'All failed login attempts have been deleted',
+        deletedCount: result.affected || 0,
+      };
+    } catch (error) {
+      this.logger.error('Failed to delete all failed login attempts:', error);
+      throw error;
+    }
+  }
+
+  async getSecurityAlerts() {
+    try {
+      const [failedLogins, systemMetrics] = await Promise.all([
+        this.getFailedLoginAlerts(),
+        this.getSystemLoadAlerts(),
+      ]);
+
+      return {
+        timestamp: new Date().toISOString(),
+        alerts: {
+          failedLogins,
+          systemLoad: systemMetrics,
+        },
+        totalAlerts: failedLogins.length + systemMetrics.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get security alerts:', error);
+      return {
+        timestamp: new Date().toISOString(),
+        alerts: { failedLogins: [], systemLoad: [] },
+        totalAlerts: 0,
+      };
+    }
+  }
+
   private async getDiskUsage() {
     // This is a simplified implementation
     // In production, you might want to use a proper disk usage library
@@ -303,6 +399,85 @@ export class MonitoringService {
     }
   }
 
+  private async getFailedLoginAlerts() {
+    try {
+      const failedLogins = await this.failedLoginRepository.find({
+        where: { attempts: 3 },
+        order: { lastAttemptAt: 'DESC' },
+      });
+
+      return failedLogins.map(attempt => ({
+        type: 'failed_login',
+        severity: 'high',
+        message: `User ${attempt.username} has 3 failed login attempts from IP ${attempt.ipAddress}`,
+        details: {
+          username: attempt.username,
+          ipAddress: attempt.ipAddress,
+          attempts: attempt.attempts,
+          lastAttemptAt: attempt.lastAttemptAt,
+        },
+        timestamp: attempt.lastAttemptAt,
+      }));
+    } catch (error) {
+      this.logger.error('Failed to get failed login alerts:', error);
+      return [];
+    }
+  }
+
+  private async getSystemLoadAlerts() {
+    try {
+      const metrics = await this.getSystemMetrics();
+      const alerts: any[] = [];
+
+      if (metrics.resources.memory.critical) {
+        alerts.push({
+          type: 'system_load',
+          severity: 'high',
+          message: `High memory usage: ${metrics.resources.memory.usagePercent}%`,
+          details: {
+            component: 'memory',
+            usagePercent: metrics.resources.memory.usagePercent,
+            threshold: 85,
+          },
+          timestamp: new Date(),
+        });
+      }
+
+      if (metrics.resources.cpu.critical) {
+        alerts.push({
+          type: 'system_load',
+          severity: 'high',
+          message: `High CPU usage: ${metrics.resources.cpu.usagePercent}%`,
+          details: {
+            component: 'cpu',
+            usagePercent: metrics.resources.cpu.usagePercent,
+            threshold: 85,
+          },
+          timestamp: new Date(),
+        });
+      }
+
+      if (metrics.resources.disk.critical) {
+        alerts.push({
+          type: 'system_load',
+          severity: 'high',
+          message: `High disk usage: ${metrics.resources.disk.usagePercent}%`,
+          details: {
+            component: 'disk',
+            usagePercent: metrics.resources.disk.usagePercent,
+            threshold: 85,
+          },
+          timestamp: new Date(),
+        });
+      }
+
+      return alerts;
+    } catch (error) {
+      this.logger.error('Failed to get system load alerts:', error);
+      return [];
+    }
+  }
+
   private formatBytes(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -310,4 +485,5 @@ export class MonitoringService {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
+
 }
