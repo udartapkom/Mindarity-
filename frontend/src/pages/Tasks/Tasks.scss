@@ -1,0 +1,370 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.tasks {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: #333;
+    }
+
+    .tasks__actions {
+      display: flex;
+      gap: 10px;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  &__loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+
+  &__error {
+    text-align: center;
+    padding: 40px;
+    color: #dc3545;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    margin: 20px 0;
+
+    p {
+      margin: 0 0 15px 0;
+      font-weight: 500;
+    }
+
+    button {
+      margin-top: 10px;
+    }
+  }
+}
+
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  .no-goals {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    background: #f9f9f9;
+    border-radius: 8px;
+
+    p {
+      margin: 0 0 15px 0;
+    }
+  }
+}
+
+.goal-item {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  .goal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+
+    .goal-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex: 1;
+
+      .goal-title {
+        font-weight: 600;
+        color: #333;
+        font-size: 16px;
+      }
+
+      .goal-priority {
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    }
+
+    .goal-status {
+      font-size: 18px;
+      margin-right: 10px;
+    }
+
+    .goal-toggle {
+      color: #666;
+      font-size: 14px;
+    }
+  }
+
+  .goal-description {
+    color: #555;
+    margin: 10px 0;
+    line-height: 1.5;
+  }
+
+  .goal-deadline {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .goal-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      overflow: hidden;
+
+      .progress-fill {
+        height: 100%;
+        background: #007bff;
+        transition: width 0.3s ease;
+      }
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: #666;
+      min-width: 40px;
+    }
+  }
+
+  .goal-tasks {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+
+    .tasks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+
+      h4 {
+        margin: 0;
+        color: #333;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  margin-bottom: 8px;
+
+  .task-checkbox {
+    margin-top: 2px;
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+  }
+
+  .task-content {
+    flex: 1;
+
+    .task-title {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .task-description {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .task-details {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+
+      .task-priority {
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: white;
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .task-due {
+        color: #666;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+
+    h3 {
+      margin: 0;
+      color: #333;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        color: #333;
+      }
+    }
+  }
+
+  form {
+    padding: 0 20px 20px 20px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+
+  &--primary {
+    background: #007bff;
+    color: white;
+
+    &:hover {
+      background: #0056b3;
+    }
+  }
+
+  &--secondary {
+    background: #6c757d;
+    color: white;
+
+    &:hover {
+      background: #545b62;
+    }
+  }
+
+  &--small {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+} 

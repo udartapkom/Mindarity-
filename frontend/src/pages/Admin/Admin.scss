@@ -1,0 +1,448 @@
+.admin {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+
+    h1 {
+      margin: 0;
+      color: #333;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 1.2rem;
+    color: #666;
+  }
+
+  &__access-denied {
+    text-align: center;
+    padding: 60px 20px;
+    color: #dc3545;
+
+    h2 {
+      margin: 0 0 20px 0;
+      font-size: 1.8rem;
+    }
+
+    p {
+      font-size: 1.1rem;
+      color: #666;
+    }
+  }
+}
+
+.admin-section {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  h2 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+
+    h2 {
+      margin: 0;
+    }
+  }
+}
+
+// Системные метрики
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border-left: 4px solid #007bff;
+
+  .metric-icon {
+    font-size: 2rem;
+  }
+
+  .metric-content {
+    flex: 1;
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .metric-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .metric-status {
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+  }
+}
+
+// Система безопасности
+.security-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  .no-alerts {
+    text-align: center;
+    padding: 40px;
+    color: #28a745;
+    font-size: 1.1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+}
+
+.security-alert {
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid;
+  background: #f8f9fa;
+
+  &.low {
+    border-left-color: #28a745;
+  }
+
+  &.medium {
+    border-left-color: #ffc107;
+  }
+
+  &.high {
+    border-left-color: #fd7e14;
+  }
+
+  &.critical {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+  }
+
+  .alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+
+    .alert-type {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .alert-severity {
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+  }
+
+  .alert-message {
+    color: #666;
+    margin-bottom: 15px;
+    line-height: 1.5;
+  }
+
+  .alert-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .alert-time {
+      color: #888;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Фильтры
+.filters {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .search-input {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    min-width: 200px;
+
+    &:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+  }
+
+  .filter-select {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+
+    &:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+  }
+}
+
+// Таблица пользователей
+.users-table {
+  overflow-x: auto;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.9rem;
+    }
+
+    td {
+      vertical-align: top;
+    }
+  }
+}
+
+.user-info {
+  .user-name {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 5px;
+  }
+
+  .user-id {
+    font-size: 0.8rem;
+    color: #888;
+  }
+}
+
+.role-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  &.admin {
+    background: #dc3545;
+    color: white;
+  }
+
+  &.user {
+    background: #28a745;
+    color: white;
+  }
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: white;
+}
+
+.user-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .btn {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}
+
+// Статистика
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 2px solid #e0e0e0;
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #007bff;
+    margin-bottom: 10px;
+  }
+
+  .stat-label {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+}
+
+// Кнопки
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &--primary {
+    background: #007bff;
+    color: white;
+
+    &:hover {
+      background: #0056b3;
+    }
+  }
+
+  &--secondary {
+    background: #6c757d;
+    color: white;
+
+    &:hover {
+      background: #545b62;
+    }
+  }
+
+  &--danger {
+    background: #dc3545;
+    color: white;
+
+    &:hover {
+      background: #c82333;
+    }
+  }
+
+  &--small {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .admin {
+    padding: 15px;
+
+    &__header {
+      flex-direction: column;
+      gap: 15px;
+      align-items: flex-start;
+
+      h1 {
+        font-size: 1.5rem;
+      }
+    }
+  }
+
+  .admin-section {
+    padding: 20px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+
+    .search-input,
+    .filter-select {
+      width: 100%;
+    }
+  }
+
+  .users-table {
+    table {
+      font-size: 0.8rem;
+
+      th, td {
+        padding: 8px;
+      }
+    }
+  }
+
+  .user-actions {
+    .btn {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+    }
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+} 

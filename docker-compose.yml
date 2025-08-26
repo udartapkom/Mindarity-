@@ -1,0 +1,205 @@
+version: '3.8'
+
+services:
+  # База данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: mindarity-postgres
+    environment:
+      POSTGRES_DB: mindarity
+      POSTGRES_USER: mindarity_user
+      POSTGRES_PASSWORD: mindarity_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Redis для кэширования и сессий
+  redis:
+    image: redis:7-alpine
+    container_name: mindarity-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Elasticsearch для поиска
+  elasticsearch:
+    image: elasticsearch:7.17.0
+    container_name: mindarity-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # MinIO для хранения файлов
+  minio:
+    image: minio/minio:latest
+    container_name: mindarity-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_SERVER_URL: https://mindarity.ru
+      MINIO_BROWSER_REDIRECT_URL: https://mindarity.ru
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Keycloak для аутентификации
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    container_name: mindarity-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password
+      KC_HOSTNAME: mindarity.ru
+      KC_HOSTNAME_ADMIN: mindarity.ru
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    command: start-dev
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Backend приложение
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mindarity-backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://mindarity_user:mindarity_password@postgres:5432/mindarity
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: mindarity_user
+      DATABASE_PASSWORD: mindarity_password
+      DATABASE_NAME: mindarity
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET: mindarity
+      MINIO_PUBLIC_URL: https://mindarity.ru/minio
+      KEYCLOAK_URL: http://keycloak:8080
+      CORS_ORIGIN: https://mindarity.ru,http://localhost:3000
+      TYPEORM_SYNC: "true"
+      # Super Admin Seed Data
+      SUPER_ADMIN_EMAIL: admin@mindarity.ru
+      SUPER_ADMIN_USERNAME: superadmin
+      SUPER_ADMIN_PASSWORD: SuperAdmin123!
+      
+      # Elasticsearch Authentication
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: changeme
+      
+      # OAuth Configuration
+      OAUTH_GOOGLE_CLIENT_ID: your-google-client-id
+      OAUTH_GOOGLE_CLIENT_SECRET: your-google-client-secret
+      OAUTH_GOOGLE_CALLBACK_URL: https://mindarity.ru/auth/google/callback
+      
+      OAUTH_GITHUB_CLIENT_ID: your-github-client-id
+      OAUTH_GITHUB_CLIENT_SECRET: your-github-client-secret
+      OAUTH_GITHUB_CALLBACK_URL: https://mindarity.ru/auth/github/callback
+      
+      # CAPTCHA Configuration
+      RECAPTCHA_SITE_KEY: your-recaptcha-site-key
+      RECAPTCHA_SECRET_KEY: your-recaptcha-secret-key
+      
+      HCAPTCHA_SITE_KEY: your-hcaptcha-site-key
+      HCAPTCHA_SECRET_KEY: your-hcaptcha-secret-key
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+      - elasticsearch
+      - minio
+      - keycloak
+    # volumes disabled in production
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Frontend приложение
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://mindarity.ru/api
+        VITE_KEYCLOAK_URL: https://mindarity.ru/auth
+    container_name: mindarity-frontend
+    env_file:
+      - ./frontend/env.docker
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: https://mindarity.ru/api
+      VITE_KEYCLOAK_URL: https://mindarity.ru/auth
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    # volumes disabled in production
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+  # Nginx для reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: mindarity-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+      - keycloak
+      - minio
+    networks:
+      - mindarity-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  minio_data:
+  nginx_logs:
+
+networks:
+  mindarity-network:
+    driver: bridge 

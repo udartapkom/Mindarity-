@@ -1,0 +1,71 @@
+.files-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    
+    h1 {
+      margin: 0;
+      color: #333;
+      font-size: 2rem;
+    }
+  }
+  
+  &__success {
+    background: #d4edda;
+    color: #155724;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-weight: 500;
+  }
+  
+  &__upload-section {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    
+    h2 {
+      margin: 0 0 1.5rem 0;
+      color: #333;
+      font-size: 1.5rem;
+    }
+  }
+  
+  &__list-section {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 2rem;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .files-page {
+    padding: 1rem;
+    
+    &__header {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+    }
+    
+    &__upload-section,
+    &__list-section {
+      padding: 1.5rem;
+    }
+  }
+}

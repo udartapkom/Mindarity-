@@ -1,0 +1,75 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.header {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  background: $white;
+  border-bottom: 1px solid $gray-200;
+  padding: $spacing-md $spacing-lg;
+  box-shadow: $shadow-sm;
+  
+  &__left {
+    @include flex-row;
+    align-items: center;
+    
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: $spacing-sm;
+      border-radius: $border-radius;
+      transition: background-color 0.3s ease;
+      
+      &:hover {
+        background: $gray-100;
+      }
+      
+      .menu-icon {
+        font-size: $font-size-xl;
+        color: $gray-700;
+      }
+    }
+  }
+  
+  &__date {
+    @include flex-row;
+    align-items: center;
+    gap: $spacing-sm;
+    
+    .date-text {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-medium;
+      color: $gray-700;
+    }
+    
+    .date-icon {
+      font-size: $font-size-xl;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: $breakpoint-lg) {
+  .header {
+    &__left {
+      .menu-toggle {
+        display: block;
+      }
+    }
+  }
+}
+
+@media (max-width: $breakpoint-md) {
+  .header {
+    padding: $spacing-sm;
+    
+    &__date {
+      .date-text {
+        font-size: $font-size-base;
+      }
+    }
+  }
+} 

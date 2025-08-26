@@ -1,0 +1,135 @@
+@import '../../styles/modules/variables';
+@import '../../styles/modules/mixins';
+
+.login-page {
+  @include flex-center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, $primary-color, $secondary-color);
+  
+  .login-container {
+    background: $white;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-xl;
+    padding: $spacing-md;
+    width: 100%;
+    max-width: 400px;
+    margin: $spacing-md;
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: $spacing-lg;
+      
+      h1 {
+        color: $primary-color;
+        font-size: $font-size-xxxl;
+        margin-bottom: $spacing-sm;
+      }
+      
+      p {
+        color: $gray-600;
+        font-size: $font-size-base;
+      }
+    }
+    
+    .login-form {
+      .form-group {
+        margin-bottom: $spacing-md;
+        
+        label {
+          display: block;
+          margin-bottom: $spacing-sm;
+          color: $gray-700;
+          font-weight: $font-weight-medium;
+        }
+        
+        input {
+          width: 100%;
+          padding: $spacing-sm;
+          border: 2px solid $gray-300;
+          border-radius: $border-radius;
+          font-size: $font-size-base;
+          transition: border-color 0.3s ease;
+          
+          &:focus {
+            outline: none;
+            border-color: $primary-color;
+          }
+        }
+      }
+      
+      .form-row {
+        display: flex;
+        gap: $spacing-md;
+        
+        .form-group {
+          flex: 1;
+        }
+      }
+      
+      .error-message {
+        background: $danger-color;
+        color: $white;
+        padding: $spacing-md;
+        border-radius: $border-radius;
+        margin-bottom: $spacing-md;
+        text-align: center;
+      }
+      
+      .submit-btn {
+        width: 100%;
+        background: $primary-color;
+        color: $white;
+        border: none;
+        padding: $spacing-md;
+        border-radius: $border-radius;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        
+        &:hover {
+          background: darken($primary-color, 10%);
+        }
+        
+        &:disabled {
+          background: $gray-500;
+          cursor: not-allowed;
+        }
+      }
+    }
+    
+    .login-footer {
+      text-align: center;
+      margin-top: $spacing-lg;
+      
+      .toggle-mode-btn {
+        background: none;
+        border: none;
+        color: $primary-color;
+        cursor: pointer;
+        font-size: $font-size-base;
+        text-decoration: underline;
+        
+        &:hover {
+          color: darken($primary-color, 10%);
+        }
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: $breakpoint-sm) {
+  .login-page {
+    padding: $spacing-sm;
+  }
+
+  .login-container {
+    padding: $spacing-lg;
+  }
+
+  .login-form .form-row {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
+} 
