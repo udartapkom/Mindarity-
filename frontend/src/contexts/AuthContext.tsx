@@ -96,36 +96,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const complete2FA = async (userId: string, otpCode: string) => {
     try {
-      console.log('Starting 2FA completion...', { userId, otpCode });
-      
-      const response = await fetch('/api/auth/login-2fa', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          otpCode,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Неверный код 2FA');
+      const data = await apiService.loginWith2FA(userId, otpCode);
+      if (data.access_token) {
+        localStorage.setItem('auth_token', data.access_token);
       }
-
-      const data = await response.json();
-      console.log('2FA completion response:', data);
-      
-      // Сохраняем токен
-      localStorage.setItem('auth_token', data.access_token);
-      
-      // Устанавливаем пользователя
       if (data.user) {
-        console.log('Setting user in context:', data.user);
         setUser(data.user);
-      } else {
-        console.warn('No user data in 2FA response');
       }
     } catch (error) {
       console.error('2FA completion failed:', error);

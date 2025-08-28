@@ -26,11 +26,13 @@ export class MinioStorageService {
   private readonly minioClient: Minio.Client;
   private readonly maxFileSize: number = 100 * 1024 * 1024; // 100MB по умолчанию
   private readonly maxStorageUsage: number = 0.9; // 90% от доступного места
+  private readonly publicBaseUrl: string;
 
   constructor(
     private readonly configService: ConfigService,
   ) {
     this.bucketName = this.configService.get<string>('MINIO_BUCKET', 'mindarity');
+    this.publicBaseUrl = this.configService.get<string>('MINIO_PUBLIC_URL', 'http://minio:9000').replace(/\/$/, '');
     
     // Инициализируем MinIO клиент напрямую
     this.minioClient = new Minio.Client({
@@ -312,8 +314,19 @@ export class MinioStorageService {
       // Генерируем presigned URL для доступа к файлу
       const presignedUrl = await this.minioClient.presignedGetObject(this.bucketName, objectName, 24 * 60 * 60); // 24 часа
       
-      // Заменяем внутренний MinIO URL на внешний через nginx
-      return presignedUrl.replace('http://minio:9000', 'https://mindarity.ru/minio');
+      // Заменяем внутренний MinIO URL на публичный базовый URL
+      // Если publicBaseUrl указывает на сам MinIO (http://localhost:9000), оставляем presigned
+      // Если это прокси-URL вида https://domain/minio, возвращаем прямую ссылку без подписи
+      if (/^https?:\/\/[^/]+(:\d+)?$/.test(this.publicBaseUrl)) {
+        // База без префикса — используем presigned с заменой хоста
+        const urlObj = new URL(presignedUrl);
+        const publicObj = new URL(this.publicBaseUrl);
+        urlObj.protocol = publicObj.protocol;
+        urlObj.host = publicObj.host;
+        return urlObj.toString();
+      }
+      // Путь-префикс (например, https://domain/minio)
+      return `${this.publicBaseUrl}/${this.bucketName}/${objectName}`;
     } catch (error) {
       this.logger.error(`Failed to generate presigned URL for ${objectName}:`, error);
       throw new BadRequestException(`Failed to generate file URL: ${error.message}`);
@@ -325,8 +338,8 @@ export class MinioStorageService {
    */
   getAvatarUrl(objectName: string): string {
     try {
-      // Возвращаем прямой URL через nginx без presigned параметров
-      return `https://mindarity.ru/minio/${this.bucketName}/${objectName}`;
+      // Возвращаем прямой URL, основанный на MINIO_PUBLIC_URL
+      return `${this.publicBaseUrl}/${this.bucketName}/${objectName}`;
     } catch (error) {
       this.logger.error(`Failed to generate avatar URL for ${objectName}:`, error);
       throw new BadRequestException(`Failed to generate avatar URL: ${error.message}`);

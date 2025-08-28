@@ -103,35 +103,39 @@ Mindarity_new/
 - Node.js 18+ (для локальной разработки)
 - Git
 
-### Локальная разработка
+### Локальная разработка (актуально)
 
 1. **Клонирование репозитория**
 ```bash
 git clone <repository-url>
-cd Mindarity_new
+cd Mindarity-
 ```
 
-2. **Настройка переменных окружения**
+2. **Запуск dev-стека**
+Есть готовый скрипт:
 ```bash
-# Создайте .env файлы в backend/ и frontend/
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
+./scripts/dev.sh
 ```
-
-3. **Запуск с помощью Docker Compose**
+Либо вручную:
 ```bash
-docker-compose up --build -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
-4. **Применение миграций базы данных**
-```bash
-docker-compose exec backend npx typeorm migration:run --dataSource dist/config/configuration.js
-```
+3. **Доступ к сервисам**
+- Frontend (Vite): http://localhost:5173
+- Backend API (NestJS): http://localhost:3000
+- Swagger: http://localhost:3000/api
+- Postgres: localhost:5432 (DB: mindarity_dev, user: mindarity_user, pass: mindarity_password)
+- Redis: localhost:6379
+- Elasticsearch: http://localhost:9200
+- MinIO API/Console: http://localhost:9000 / http://localhost:9001 (minioadmin / minioadmin123)
+- Mailhog UI (SMTP тесты): http://localhost:8025
 
-5. **Доступ к приложению**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Swagger документация: http://localhost:3001/api
+Примечания по dev:
+- Бэкенд и фронтенд работают в контейнерах c hot-reload (npm ci && npm run dev).
+- CORS для фронта уже настроен на http://localhost:5173.
+- Загрузка аватара пишет в bucket `mindarity` в MinIO; публичные ссылки формируются на `http://localhost:9000`.
+- База dev — `mindarity_dev`; миграции не требуются (в dev включён synchronize).
 
 ### Развертывание на сервере
 
@@ -234,8 +238,8 @@ After=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/root/mindarity
-ExecStart=/usr/local/bin/docker-compose up -d
-ExecStop=/usr/local/bin/docker-compose down
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=0
 
 [Install]
@@ -254,11 +258,11 @@ sudo systemctl start mindarity.service
 
 ```env
 # База данных
-DB_HOST=postgres
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=mindarity
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_USERNAME=mindarity_user
+DATABASE_PASSWORD=mindarity_password
+DATABASE_NAME=mindarity
 
 # Redis
 REDIS_HOST=redis
@@ -269,22 +273,24 @@ JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=24h
 
 # MinIO
-MINIO_ENDPOINT=minio
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=your_access_key
-MINIO_SECRET_KEY=your_secret_key
-MINIO_BUCKET_NAME=mindarity-files
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin123
+MINIO_BUCKET=mindarity
+MINIO_PUBLIC_URL=https://mindarity.ru/minio
 
 # Приложение
-PORT=3001
+PORT=3000
 NODE_ENV=production
 ```
 
-### Переменные окружения Frontend (.env)
+### Переменные окружения Frontend (Vite)
 
-```env
-REACT_APP_API_URL=https://mindarity.ru/api
-REACT_APP_WS_URL=wss://mindarity.ru
+В Docker dev передаётся через `docker-compose.dev.yml`:
+```
+VITE_API_URL=http://localhost:3000
+VITE_KEYCLOAK_URL=http://localhost:8080
+VITE_MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
 ## API Endpoints
@@ -312,6 +318,7 @@ REACT_APP_WS_URL=wss://mindarity.ru
 - `DELETE /tasks/:id` - Удаление задачи
 
 ### Файлы
+- `POST /files/upload` - Загрузка файла
 - `POST /files/upload-large` - Загрузка больших файлов
 - `GET /files` - Список файлов
 - `DELETE /files/:id` - Удаление файла
@@ -381,26 +388,26 @@ REACT_APP_WS_URL=wss://mindarity.ru
 
 ### Резервное копирование
 ```bash
-# Резервное копирование базы данных
-docker-compose exec postgres pg_dump -U postgres mindarity > backup.sql
+# Резервное копирование базы данных (dev)
+docker compose exec postgres pg_dump -U mindarity_user mindarity_dev > backup.sql
 
-# Восстановление базы данных
-docker-compose exec -T postgres psql -U postgres mindarity < backup.sql
+# Восстановление базы данных (dev)
+docker compose exec -T postgres psql -U mindarity_user mindarity_dev < backup.sql
 ```
 
 ### Обновление приложения
 ```bash
 # Остановка приложения
-docker-compose down
+docker compose down
 
 # Обновление кода
 git pull origin main
 
 # Пересборка и запуск
-docker-compose up --build -d
+docker compose up --build -d
 
-# Применение новых миграций
-docker-compose exec backend npx typeorm migration:run --dataSource dist/config/configuration.js
+# Применение новых миграций (если отключён synchronize)
+docker compose exec backend npx typeorm migration:run --dataSource dist/config/configuration.js
 ```
 
 ### Мониторинг логов

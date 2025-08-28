@@ -30,6 +30,22 @@ export interface User {
   lastLoginAt?: string;
 }
 
+export function normalizeAvatarUrl(url?: string): string | undefined {
+  if (!url) return url;
+  try {
+    const base = (import.meta as any).env?.VITE_MINIO_PUBLIC_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:9000` : 'http://localhost:9000');
+    // Replace domain-proxied form like https://mindarity.ru/minio/BUCKET/path -> {base}/BUCKET/path
+    const idx = url.indexOf('/minio/');
+    if (idx !== -1) {
+      const suffix = url.substring(idx + '/minio/'.length);
+      return `${base.replace(/\/$/, '')}/${suffix}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 export interface AuthResponse {
   access_token?: string;
   user?: User;
@@ -229,6 +245,14 @@ class ApiService {
     
     this.setAuthToken(response.data.access_token);
     return { access_token: response.data.access_token, user: mappedUser };
+  }
+
+  async loginWith2FA(userId: string, otpCode: string): Promise<AuthResponse> {
+    const response: AxiosResponse<any> = await this.api.post('/auth/login-2fa', { userId, otpCode });
+    if (response.data?.access_token) {
+      this.setAuthToken(response.data.access_token);
+    }
+    return response.data as AuthResponse;
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {

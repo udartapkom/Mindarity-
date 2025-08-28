@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import apiService from '../../services/api';
+import apiService, { normalizeAvatarUrl } from '../../services/api';
 import type { User, Session } from '../../services/api';
 import './Profile.scss';
 
@@ -227,7 +227,7 @@ const Profile: React.FC = () => {
         <div className="profile-section">
           <div className="profile-avatar">
             <img 
-              src={profile.avatar || '/default-avatar.png'} 
+              src={normalizeAvatarUrl(profile.avatar) || '/default-avatar.png'} 
               alt="Аватар" 
               className="avatar-image"
             />
