@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../contexts/useAuth';
+import { normalizeAvatarUrl } from '../../services/api';
 import './Sidebar.scss';
 
 interface SidebarProps {
@@ -22,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onPageChange, isOpen = fa
         <div className="user-info">
           <div className="avatar">
             {user?.avatar ? (
-              <img src={user.avatar} alt="Avatar" />
+              <img src={normalizeAvatarUrl(user.avatar)} alt="Avatar" />
             ) : (
               <div className="avatar-placeholder">
                 {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}

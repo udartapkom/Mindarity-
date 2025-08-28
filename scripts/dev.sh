@@ -3,10 +3,10 @@
 echo "🚀 Запуск Mindarity в режиме разработки..."
 
 # Остановить существующие контейнеры
-docker-compose down
+docker compose down
 
-# Запустить сервисы
-docker-compose up --build
+# Запустить сервисы с dev-оверрайдом (без сборки образов)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 echo "✅ Mindarity запущен в режиме разработки!"
 echo "🌐 Frontend: http://localhost:5173"
